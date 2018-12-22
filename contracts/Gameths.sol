@@ -1,33 +1,35 @@
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.24;
 
 import "./ERC20.sol";
 
-contract Gameths {
+contract Battleship {
 	// Variables
-	address public owner;
-	address public token;
-	uint public maxPlayer;
+	address public playerA;
+	address public winner;
+	uint constant public maxPlayer = 1000;
+	uint constant public period = 5;
 	uint public initHeight;
-	uint public difficulty = 3;
+	bytes32 public difficulty;
+	uint public fee = 10000000000000000;
 	bool public setup = false;
-	uint public period = 5;
-	uint public futureBlockCovered;
-	uint public fee = 5000000000000000;
-	uint public closerCount;
+	uint public playercount = 0;
 
 	struct playerInfo {
 		address wallet; // msg.sender
 		uint since;     // block height when joined
-		bytes32 ticket; // sha3(wallet + block.blockhash(block.number - 1)
-		uint canCall; 
+		bytes32 ticket; // board
+		uint8[64] slots;
+		uint8 v;
+		bytes32 r;
+		bytes32 s; 
 	}
 
 	mapping (address => playerInfo) playerDB;
 	mapping (uint => address) playerList;
 
 	// Modifiers
-	modifier OwnerOnly() {
-		require(msg.sender == owner);
+	modifier WinnerOnly() {
+		require(winner != address(0) && msg.sender == winner);
 		_;
 	}
 
@@ -46,38 +48,32 @@ contract Gameths {
 		_;
 	}
 
+	modifier notYourself() {
+		require(msg.sender != playerA);
+		_;
+	}
+
 	// Contract constructor
-	function Gameths() {
-		owner = msg.sender;
+	constructor(bytes32 _difficulty) payable feePaid {
+		playerA = msg.sender;
 		initHeight = block.number;
+		difficulty = _difficulty;
+
+		// PlayerA board
+		playerInfo memory newone;
+
+		newone.wallet = msg.sender;
+		newone.since  = block.number;
+		newone.ticket = sha3(sha3(abi.encodePacked(msg.sender, blockhash(block.number - 1))));
+
+		playerDB[msg.sender] = newone;
+		playerList[playercount] = msg.sender; 
+		playercount += 1;
 	}
 
-	// Setup function, only can be called once per round.
-	function setupGame(address _token, uint amount, uint _maxPlayer) OwnerOnly NewGameOnly returns (bool) {
-		require(ERC20(token).balanceOf(msg.sender) >= amount);
-
-		token = _token;
-		maxPlayer = _maxPlayer;
-
-		require(ERC20(token).transferFrom(msg.sender, this, amount) == true);
-
-		setup = true;
-
-		return setup;
-	}
-
-	// OwnerOnly
-	function withdraw() OwnerOnly returns (bool) {
+	// WinnerOnly
+	function withdraw() WinnerOnly returns (bool) {
 		require(msg.sender.send(this.balance));
-
-		return true;
-	}
-
-	// DEBUG OwnerOnly
-	function changeDiff(uint newdiff) OwnerOnly returns (bool) {
-		require(newdiff < 32 && newdiff > 0);
-		difficulty = newdiff;
-
 		return true;
 	}
 
@@ -86,88 +82,29 @@ contract Gameths {
 		return (a[slot], b[slot]);
 	}
 
-	/*
-	function bytes32ArrayToString (bytes32[] data) constant returns (string) {
-    		bytes memory bytesString = new bytes(data.length * 32);
-    		uint totalLength;
-
-    		for (uint i=0; i<data.length; i++) {
-        		for (uint j=0; j<32; j++) {
-            			byte char = data[i][j];
-            			if (char != 0) {
-                			bytesString[totalLength] = char;
-                			totalLength += 1;
-            			}
-        		}
-    		}
-
-    		bytes memory bytesStringTrimmed = new bytes(totalLength);
-    		for (i=0; i<totalLength; i++) {
-        		bytesStringTrimmed[i] = bytesString[i];
-    		}
-
-    		return string(bytesStringTrimmed);
-	}
-        */
-
-        // for debug purposes, we commented out won condition check
-	function checkMinedTickets(bytes32 _blockhash_won, bytes32 minedTicket) constant returns (bool) {
-		//require(won == true);
-
-		for (uint i=31; i>(31-difficulty); i--) {
-			if (byte(_blockhash_won[i]) != byte(minedTicket[i])) return false;
-		}
-
-		return true;
-	}
-
-	// for debug purposes, we allow returning bytes32.
-	function miningTicket(address player, uint nonce) constant returns (bytes32) {
-		require(playerDB[player].since != 0);
-
-		return sha3(sha3(bytes32(uint(playerDB[player].ticket) + nonce)));
-	}
-
-	function checkTickets(bytes32 _blockhash, address player) constant returns (bool) {
-		if (playerDB[player].since == 0) return false;
-
-		for (uint i=31; i>(31-difficulty); i--) {
-			if (byte(_blockhash[i]) != byte(playerDB[player].ticket[i])) return false;
-		}
-
-		return true;
-	}
-
 	function myInfo() constant returns (uint, bytes32) {
 		return (playerDB[msg.sender].since, playerDB[msg.sender].ticket);
 	}
 
 	// Join game (registration)
-	// for debug no gameStarted modifier yet ...
-	function register() payable feePaid returns (bool) {
+	function register(uint8 v, bytes32 r, bytes32 s, uint[64] slots) payable feePaid notYourself returns (bool) {
 		require(playerDB[msg.sender].since == 0);
+		require(playercount + 1 <= maxPlayer);
 
 		playerInfo memory newone;
-		closerCount += 1;
 
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
-		newone.ticket = sha3(sha3(msg.sender));
+		newone.v = v; newone.r = r; newone.s = s;
 
 		playerDB[msg.sender] = newone;
-		playerList[closerCount] = msg.sender;
+		playerList[playercount] = msg.sender; 
+		playercount += 1;
 
 		return true;
 	}
 
-	// Jackpot
-	// for debug, no gameStarted modifier yet...
-	// for debug, turning it into constant function.
-	function Jackpot() constant returns (uint, bytes32, bool) {
-		require(playerDB[msg.sender].since != 0);
-		require(block.number - playerDB[msg.sender].since > 6);
-
-		return ((block.number - 1), block.blockhash(block.number - 1), checkTickets(block.blockhash(block.number - 1), msg.sender));
+	function revealSecret(bytes32 secret) returns (bool) {
 	}
 
 	// fallback

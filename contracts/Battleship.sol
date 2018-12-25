@@ -10,6 +10,7 @@ contract Battleship {
 	uint constant public period = 10;
 	uint public initHeight;
 	bytes32 public difficulty;
+	bytes32 public board;
 	uint public fee = 10000000000000000;
 	bool public setup = false;
 	uint public playercount = 0;
@@ -17,8 +18,6 @@ contract Battleship {
 	struct playerInfo {
 		address wallet; // msg.sender
 		uint since;     // block height when joined
-		bytes32 ticket; // board
-		bool[32] slots;
 		uint8 v;
 		bytes32 r;
 		bytes32 s; 
@@ -26,9 +25,11 @@ contract Battleship {
 
 	struct battleStat {
 		uint battle;
+		uint height;
 		bytes32 merkleRoot;
 		bytes32 secret;
 		bytes32 score;
+		bytes32 bhash;
 	}
 
 	mapping (address => playerInfo) playerDB;
@@ -66,7 +67,8 @@ contract Battleship {
 	}
 
 	// Contract constructor
-	constructor(bytes32 _difficulty, bytes32 _init) payable feePaid {
+	constructor(bytes32 _difficulty, bytes32 _init) payable {
+		require(msg.value >= fee);
 		defender = msg.sender;
 		difficulty = _difficulty;
 
@@ -76,10 +78,11 @@ contract Battleship {
 	// WinnerOnly
 	function withdraw() WinnerOnly returns (bool) {
 		require(block.number > initHeight + period);
-		require(msg.sender.send(this.balance));
 		setup = false;
 		winner = address(0);
+		board = bytes32(0);
 		playercount = 0;
+		require(msg.sender.send(address(this).balance));
 
 		return true;
 	}
@@ -89,8 +92,8 @@ contract Battleship {
 		return (a[slot], b[slot]);
 	}
 
-	function myInfo() constant returns (uint, bytes32) {
-		return (playerDB[msg.sender].since, playerDB[msg.sender].ticket);
+	function myInfo() constant returns (uint, uint8, bytes32, bytes32, uint) {
+		return (playerDB[msg.sender].since, playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s, initHeight);
 	}
 
 	function fortify(bytes32 defense) defenderOnly NewGameOnly returns (bool) {
@@ -98,17 +101,18 @@ contract Battleship {
 
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
-		newone.ticket = defense;
+		board = defense;
 
 		initHeight = block.number;
 		playerDB[msg.sender] = newone;
 		playercount += 1;
+		setup = true;
 
 		return true;
 	}
 
 	// Join game
-	function challenge(uint8 v, bytes32 r, bytes32 s, bool[32] slots) payable feePaid notDefender returns (bool) {
+	function challenge(uint8 v, bytes32 r, bytes32 s) payable feePaid notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].since < initHeight);
 		require(playercount + 1 <= maxPlayer);
 
@@ -117,7 +121,6 @@ contract Battleship {
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
 		newone.v = v; newone.r = r; newone.s = s;
-		newone.slots = slots;
 
 		playerDB[msg.sender] = newone;
 		playercount += 1;
@@ -125,28 +128,33 @@ contract Battleship {
 		return true;
 	}
 
-	function revealSecret(bytes32 secret) notDefender returns (bool) {
+	function revealSecret(bytes32 secret, bytes32 score, bool[32] slots) notDefender returns (bool) {
 		require(block.number <= initHeight + period && block.number >= initHeight + 5);
 		require(playerDB[msg.sender].since > initHeight);
-		require(ecrecover(sha3("\x19Ethereum Signed Message:\n32", sha256(secret)), playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s) == msg.sender);
+		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", sha256(secret))), playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s) == msg.sender);
 
 		battleStat memory newbat;
 		newbat.battle = initHeight;
 		newbat.secret = secret;
-		newbat.score  = keccak256(abi.encodePacked(secret, blockhash(initHeight))); // initialize for the loop below
+		newbat.bhash = blockhash(block.number - 1);
+		newbat.score = keccak256(abi.encodePacked(secret, blockhash(block.number - 1))); // initialize for the loop below
 
 		for (uint i = 0; i <= 31; i++) {
-			if(playerDB[msg.sender].slots[i] == false) {
-				newbat.score[i] = playerDB[defender].ticket[i];
+			if(slots[i] == false) {
+				assert(score[i] == board[i]);
+			} else {
+				assert(score[i] != newbat.score[i]);
 			}
 		}
 
+		newbat.score = score;
 		battleHistory[initHeight][msg.sender] = newbat;
 
-		if (Winner == address(0) && newbat.score < playerDB[defender].ticket) {
-			Winner = msg.sender;
-		} else if (newbat.score < battleHistory[initHeight][Winner].score) {
-			Winner = msg.sender;
+		// ToDo: majority merkle root voting and checking of each submission 
+		if (winner == address(0) && newbat.score < board) {
+			winner = msg.sender;
+		} else if (newbat.score < battleHistory[initHeight][winner].score) {
+			winner = msg.sender;
 		}
 
 		return true;

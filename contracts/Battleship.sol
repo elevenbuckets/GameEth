@@ -7,7 +7,7 @@ contract Battleship {
 	address public defender;
 	address public winner;
 	uint constant public maxPlayer = 1000;
-	uint constant public period = 10;
+	uint constant public period = 25;
 	uint public initHeight;
 	bytes32 public board;
 	uint public fee = 10000000000000000;
@@ -57,6 +57,11 @@ contract Battleship {
 
 	modifier gameStarted() {
 		require(setup == true);
+		_;
+	}
+
+	modifier gameStalled() {
+		require(setup == true && block.number > initHeight + period && winner == address(0));
 		_;
 	}
 
@@ -129,7 +134,7 @@ contract Battleship {
 	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots) public notDefender returns (bool) {
 		require(block.number <= initHeight + period && block.number >= initHeight + 5);
 		require(playerDB[msg.sender].since > initHeight);
-		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", sha256(abi.encode(secret)))), playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s) == msg.sender);
+		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", secret)), playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s) == msg.sender);
 
 		battleStat memory newbat;
 		newbat.battle = initHeight;
@@ -158,8 +163,6 @@ contract Battleship {
 		return true;
 	}
 
-
 	// fallback
-  	function () external payable { revert(); }
-
+  	function () defenderOnly gameStalled external { winner = defender; return withdraw(); }
 }

@@ -66,7 +66,7 @@ contract Battleship {
 	}
 
 	// Contract constructor
-	constructor(bytes32 _init) payable {
+	constructor(bytes32 _init) public payable {
 		require(msg.value >= fee);
 		defender = msg.sender;
 
@@ -74,7 +74,7 @@ contract Battleship {
 	}
 
 	// WinnerOnly
-	function withdraw() WinnerOnly returns (bool) {
+	function withdraw() public WinnerOnly returns (bool) {
 		require(block.number > initHeight + period);
 		setup = false;
 		winner = address(0);
@@ -86,15 +86,15 @@ contract Battleship {
 	}
 
 	// Constant functions
-	function equalTest(bytes32 a, bytes32 b, uint slot) constant returns (byte, byte) {
+	function equalTest(bytes32 a, bytes32 b, uint slot) public pure returns (byte, byte) {
 		return (a[slot], b[slot]);
 	}
 
-	function myInfo() constant returns (uint, uint8, bytes32, bytes32, uint) {
+	function myInfo() public view returns (uint, uint8, bytes32, bytes32, uint) {
 		return (playerDB[msg.sender].since, playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s, initHeight);
 	}
 
-	function fortify(bytes32 defense) payable feePaid defenderOnly NewGameOnly returns (bool) {
+	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {
 		playerInfo memory newone;
 
 		newone.wallet = msg.sender;
@@ -110,7 +110,7 @@ contract Battleship {
 	}
 
 	// Join game
-	function challenge(uint8 v, bytes32 r, bytes32 s) payable feePaid notDefender gameStarted returns (bool) {
+	function challenge(uint8 v, bytes32 r, bytes32 s) public payable feePaid notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].since < initHeight);
 		require(playercount + 1 <= maxPlayer);
 
@@ -126,10 +126,10 @@ contract Battleship {
 		return true;
 	}
 
-	function revealSecret(bytes32 secret, bytes32 score, bool[32] slots) notDefender returns (bool) {
+	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots) public notDefender returns (bool) {
 		require(block.number <= initHeight + period && block.number >= initHeight + 5);
 		require(playerDB[msg.sender].since > initHeight);
-		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", sha256(secret))), playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s) == msg.sender);
+		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", sha256(abi.encode(secret)))), playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s) == msg.sender);
 
 		battleStat memory newbat;
 		newbat.battle = initHeight;
@@ -158,7 +158,8 @@ contract Battleship {
 		return true;
 	}
 
+
 	// fallback
-  	function () payable { revert(); }
+  	function () external payable { revert(); }
 
 }

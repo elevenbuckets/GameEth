@@ -131,16 +131,35 @@ contract Battleship {
 		return true;
 	}
 
-	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots) public notDefender returns (bool) {
-		require(block.number <= initHeight + period && block.number >= initHeight + 5);
+	function testOutcome(bytes32 secret, uint blockNo) public view returns (bytes32 _board, bool[32] memory _slots) {
 		require(playerDB[msg.sender].since > initHeight);
+		require(block.number <= initHeight + period && block.number >= initHeight);
+		require(block.number - blockNo < period - 5);
+		require(blockNo <= block.number - 1 && blockNo < initHeight + period && blockNo >= initHeight + 5);
+
+		_board = keccak256(abi.encodePacked(secret, blockhash(blockNo)));
+
+		for (uint i = 0; i <= 31; i++) {
+			if(_board[i] < board[i]) {
+				_slots[i] = true;
+			}
+		}
+
+		return (_board, _slots);
+	}
+
+	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo) public gameStarted notDefender returns (bool) {
+		require(playerDB[msg.sender].since > initHeight);
+		require(block.number <= initHeight + period && block.number >= playerDB[msg.sender].since + 5);
+		require(block.number - blockNo < period - 5);
+		require(blockNo <= block.number - 1 && blockNo < initHeight + period && blockNo >= initHeight + 5);
 		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", secret)), playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s) == msg.sender);
 
 		battleStat memory newbat;
 		newbat.battle = initHeight;
 		newbat.secret = secret;
-		newbat.bhash = blockhash(block.number - 1);
-		newbat.score = keccak256(abi.encodePacked(secret, blockhash(block.number - 1))); // initialize for the loop below
+		newbat.bhash = blockhash(blockNo);
+		newbat.score = keccak256(abi.encodePacked(secret, blockhash(blockNo))); // initialize for the loop below
 
 		for (uint i = 0; i <= 31; i++) {
 			if(slots[i] == false) {
@@ -164,5 +183,8 @@ contract Battleship {
 	}
 
 	// fallback
-  	function () defenderOnly gameStalled external { winner = defender; return withdraw(); }
+  	function () defenderOnly gameStalled external { 
+  	    winner = defender; 
+  	    require(withdraw()); 
+  	}
 }

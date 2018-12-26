@@ -143,7 +143,7 @@ contract Battleship {
 			if(slots[i] == false) {
 				assert(score[i] == board[i]);
 			} else {
-				assert(score[i] != newbat.score[i]);
+				assert(score[i] == newbat.score[i]);
 			}
 		}
 

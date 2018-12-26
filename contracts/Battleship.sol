@@ -9,7 +9,6 @@ contract Battleship {
 	uint constant public maxPlayer = 1000;
 	uint constant public period = 10;
 	uint public initHeight;
-	bytes32 public difficulty;
 	bytes32 public board;
 	uint public fee = 10000000000000000;
 	bool public setup = false;
@@ -67,12 +66,11 @@ contract Battleship {
 	}
 
 	// Contract constructor
-	constructor(bytes32 _difficulty, bytes32 _init) payable {
+	constructor(bytes32 _init) payable {
 		require(msg.value >= fee);
 		defender = msg.sender;
-		difficulty = _difficulty;
 
-		fortify(_init);
+		require(fortify(_init) == true);
 	}
 
 	// WinnerOnly
@@ -82,7 +80,7 @@ contract Battleship {
 		winner = address(0);
 		board = bytes32(0);
 		playercount = 0;
-		require(msg.sender.send(address(this).balance));
+		require(msg.sender.send(address(this).balance) == true);
 
 		return true;
 	}
@@ -96,7 +94,7 @@ contract Battleship {
 		return (playerDB[msg.sender].since, playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s, initHeight);
 	}
 
-	function fortify(bytes32 defense) defenderOnly NewGameOnly returns (bool) {
+	function fortify(bytes32 defense) payable feePaid defenderOnly NewGameOnly returns (bool) {
 		playerInfo memory newone;
 
 		newone.wallet = msg.sender;

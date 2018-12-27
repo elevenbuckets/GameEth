@@ -131,8 +131,7 @@ contract Battleship {
 		return true;
 	}
 
-	function testOutcome(bytes32 secret, uint blockNo) public view returns (bytes32 _board, bool[32] memory _slots) {
-		require(playerDB[msg.sender].since > initHeight);
+	function testOutcome(bytes32 secret, uint blockNo) public gameStarted view returns (bytes32 _board, bool[32] memory _slots) {
 		require(block.number <= initHeight + period && block.number >= initHeight);
 		require(block.number - blockNo < period - 5);
 		require(blockNo <= block.number - 1 && blockNo < initHeight + period && blockNo >= initHeight + 5);

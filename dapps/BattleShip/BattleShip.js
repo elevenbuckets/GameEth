@@ -46,7 +46,7 @@ class BattleShip extends BladeIronClient {
 				for (i = 0; i <= 31; i ++) {
 					if (!slots[i]) {
 						score[2+i*2] = board.charAt(2+i*2);
-						score[2+i*2+1] = board.charAt(2+i*2);
+						score[2+i*2+1] = board.charAt(2+i*2+1);
 					}
 				}
 

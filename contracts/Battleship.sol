@@ -9,6 +9,7 @@ contract Battleship {
 	uint constant public maxPlayer = 1000;
 	uint constant public period = 25;
 	uint public initHeight;
+	bytes32 public difficulty = 0x000000000000000000000000000000ffffffffffffffffffffffffffffffffff;
 	bytes32 public board;
 	uint public fee = 10000000000000000;
 	bool public setup = false;
@@ -100,6 +101,7 @@ contract Battleship {
 	}
 
 	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {
+		require(defense > difficulty);
 		playerInfo memory newone;
 
 		newone.wallet = msg.sender;

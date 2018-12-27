@@ -1,0 +1,9 @@
+{
+   "appName": "BattleShip",
+   "artifactDir": "/home/jasonlin/Proj/Playground/GameEth/dapps/BattleShip/ABI",
+   "conditionDir": "/home/jasonlin/Proj/Playground/GameEth/dapps/BattleShip/Conditions",
+   "contracts": [{ "ctrName": "BattleShip", "conditions": ["Sanity"] }],
+   "account": "0xf053b7f56beffbf660bbf81a7fd98880f1f550e7",
+   "networkID": 4,
+   "version": "1.0" 
+}

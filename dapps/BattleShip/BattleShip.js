@@ -18,17 +18,29 @@ class BattleShip extends BladeIronClient {
 		this.gameStarted = false;
 		this.initHeight  = 0;
 		this.results = {};
+		this.bestANS = null;
 
 		this.probe = () => 
 		{
-			this.call(this.ctrName)('board')().then((rc) => { this.board = rc; console.log(`The Board: ${rc}`); });
-			this.call(this.ctrName)('setup')().then((rc) => { this.gameStarted = rc; console.log(`The game started = ${rc}`); });
-			this.call(this.ctrName)('initHeight')().then((rc) => { 
-				this.initHeight = rc; console.log(`Init Block Height = ${rc}`); 
-				if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
-			});
-
-			return Promise.resolve(this.gameStarted);
+			return this.call(this.ctrName)('board')()
+			    .then((rc) => 
+			    { 
+			    	this.board = rc; console.log(`The Board: ${rc}`); 
+				return this.call(this.ctrName)('setup')()
+			    }
+			    .then((rc) => 
+			    { 
+				this.gameStarted = rc; console.log(`The game started = ${rc}`);
+				if (rc) {
+					return this.call(this.ctrName)('initHeight')().then((rc) => { 
+						this.initHeight = rc; console.log(`Init Block Height = ${rc}`); 
+						if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
+					})
+					.then(() => { return this.gameStarted; });
+				} else {
+					return this.gameStarted;
+				}
+			    });
 		}	
 	
 		this.trial = (stats) => 
@@ -52,12 +64,22 @@ class BattleShip extends BladeIronClient {
 
 				this.results[this.initHeight].push({score: score.join(''), secret, blockNo, slots});
 			})
+
+			this.bestANS = this.results[this.initHeight].reduce((a,c) => 
+			{
+				if(this.bytes32ToBigNumber(c.score).lte(this.bytes32ToBigNumber(a.score))) {
+					return c;
+				} else {
+					return a;
+				}
+			});
 		}
 
 		this.stopTrial = () => 
 		{
 			this.client.unsubscribe('ethstats');
 			this.client.off('ethstats');
+			console.log('Trial stopped !!!');
 		}
 
 		this.startTrial = () => 
@@ -69,7 +91,7 @@ class BattleShip extends BladeIronClient {
 					this.client.on('ethstats', this.trial);
 					console.log('Game started !!!');
 				} else {
-					console.log('Game is not yet set ...');
+					console.log('Game has not yet been set ...');
 				}
 			})
 		}

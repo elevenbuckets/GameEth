@@ -18,7 +18,7 @@ class BattleShip extends BladeIronClient {
 		this.gameStarted = false;
 		this.initHeight  = 0;
 		this.results = {};
-		this.bestANS = null;
+		this.bestANS = {};
 
 		this.probe = () => 
 		{
@@ -42,37 +42,64 @@ class BattleShip extends BladeIronClient {
 				}
 			    });
 		}	
+
+		this.testOutcome = (raw, blockNo) => 
+		{
+			let secret = ethUtils.bufferToHex(ethUtils.sha256(raw));
+			return this.call(this.ctrName)('testOutcome')(secret, blockNo).then((r) => { return [...r, secret]});
+		} 
+
+		this.testSimple = (stats) => 
+		{
+			let raw = '11BE test';
+			let blockNo = stats.blockHeight;
+			return this.testOutcome(raw, blockNo);
+		}
 	
 		this.trial = (stats) => 
 		{
-			if (!this.gameStarted) return [];
-			if (stats.blockHeight < this.initHeight + 5) return [];
+			//if (!this.gameStarted) return [];
+			//if (stats.blockHeight < this.initHeight + 5) return [];
 
-			let blockNo = stats.blockHeight;
-			this.secretBank.map((s) => 
+			console.log('New Stats'); console.dir(stats);
+
+			let blockNo = stats.blockHeight - 1; console.log(blockNo);
+			let localANS = []; let best;
+			this.secretBank.map((s,idx) => 
 			{
-				let secret = ethUtils.sha256(s);
-				let [myboard, slots] = this.call(this.ctrName)('testOutcome')(secret, blockNo);
-				let score = [ ...myboard ];
+				this.testOutcome(s, blockNo).then((results) => 
+				{
+					let myboard = results[0]; 
+					let slots = results[1]; 
+					let secret = results[2];
 
-				for (i = 0; i <= 31; i ++) {
-					if (!slots[i]) {
-						score[2+i*2] = board.charAt(2+i*2);
-						score[2+i*2+1] = board.charAt(2+i*2+1);
+					let score = [ ...myboard ];
+	
+					for (let i = 0; i <= 31; i ++) {
+						if (!slots[i]) {
+							score[2+i*2] = this.board.charAt(2+i*2);
+							score[2+i*2+1] = this.board.charAt(2+i*2+1);
+						}
 					}
-				}
-
-				this.results[this.initHeight].push({score: score.join(''), secret, blockNo, slots});
+	
+					localANS.push({myboard, score: score.join(''), secret, blockNo, slots, raw: s});
+					//console.dir({score: score.join(''), secret, blockNo, slots});
+					if (idx === this.secretBank.length - 1) {
+						console.log("Batch " + blockNo + " done, calculating best answer ...");
+						best = localANS.reduce((a,c) => 
+						{
+							if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {
+								console.log("!!!! Better Ans Found!!!");
+								console.dir(c);
+								return c;
+							} else {
+								return a;
+							}
+						});
+						this.bestANS[blockNo] = best;
+					}
+				})
 			})
-
-			this.bestANS = this.results[this.initHeight].reduce((a,c) => 
-			{
-				if(this.bytes32ToBigNumber(c.score).lte(this.bytes32ToBigNumber(a.score))) {
-					return c;
-				} else {
-					return a;
-				}
-			});
 		}
 
 		this.stopTrial = () => 

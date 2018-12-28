@@ -7,7 +7,7 @@ contract BattleShip {
 	address public defender;
 	address public winner;
 	uint constant public maxPlayer = 1000;
-	uint constant public period = 25;
+	uint constant public period = 125;
 	uint public initHeight;
 	bytes32 public difficulty = 0x000000000000000000000000000000ffffffffffffffffffffffffffffffffff;
 	bytes32 public board;

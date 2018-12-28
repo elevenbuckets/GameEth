@@ -27,7 +27,7 @@ class BattleShip extends BladeIronClient {
 			    { 
 			    	this.board = rc; console.log(`The Board: ${rc}`); 
 				return this.call(this.ctrName)('setup')()
-			    }
+			    })
 			    .then((rc) => 
 			    { 
 				this.gameStarted = rc; console.log(`The game started = ${rc}`);

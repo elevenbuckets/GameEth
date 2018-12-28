@@ -13,6 +13,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bladeiron_api": "git+ssh://git@github.com/elevenbuckets/bladeiron_api.git",
+    "ethereumjs-utils": "^5.2.5",
     "truffle": "^4.1.14"
   }
 }

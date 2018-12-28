@@ -34,7 +34,7 @@ module.exports =
 		if ( addr !== this.CUE[jobObj.type][jobObj.contract].defender()
 		  && jobObj.txObj.value >= this.CUE[jobObj.type][job.contract].fee()
 		  && this.CUE[jobObj.type][job.contract].setup === true
-		  && since < initHeight;
+		  && since < initHeight
 		) {
 			return true;
 		} else {

@@ -63,7 +63,7 @@ class BattleShip extends BladeIronClient {
 			if (stats.blockHeight < this.initHeight + 5) return [];
 			if (stats.blockHeight >= this.initHeight + 110) {
 				this.stopTrial();
-				if (Object(this.blockBest).length > 0) {
+				if (Object(this.blockBest).values.length > 0) {
 					this.bestANS = Object(this.blockBest).values.reduce((a,c) => 
 					{
 						if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {

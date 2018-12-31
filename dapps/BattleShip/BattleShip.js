@@ -74,12 +74,11 @@ class BattleShip extends BladeIronClient {
 				.then((qid) => {
 					console.log(`DEBUG: QID = ${qid}`);
 					return this.getReceipts(qid).then((rc) => {
-						console.dir(rc);
 						let rx = rc[0];
 
 						if (rx.status === '0x1') {
 							gameANS['submitted'] = rx.blockNumber;
-							this.gameANS[this.initHeight] = gameANS;
+							this.gameANS[this.initHeight] = gameANS; console.dir(this.gameANS);
 						}
 						return rx;
 					});
@@ -89,11 +88,11 @@ class BattleShip extends BladeIronClient {
 
 		this.submitAnswer = (stats) => 
 		{
-			if (this.gameANS.secret !== this.bestANS.secret) {
+			if (this.gameANS[this.initHeight].secret !== this.bestANS.secret) {
 				console.log("secret altered after registration... Abort!");
 				return this.stopTrial();
-			} else if (stats.blockHeight < this.gameANS.submitted + 5) {
-				console.log(`Still waiting block number >= ${Number(this.gameANS.submitted) + 5} ...`);
+			} else if (stats.blockHeight < Number(this.gameANS[this.initHeight].submitted) + 5) {
+				console.log(`Still waiting block number >= ${Number(this.gameANS[this.initHeight].submitted) + 5} ...`);
 				return;
 			} else if (stats.blockHeight > this.initHeight + 125) {
 				console.log(`Game round ${this.initHeight} is now ended`);

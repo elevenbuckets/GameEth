@@ -47,7 +47,7 @@ module.exports =
 	{
 		let initHeight = this.web3.toDecimal(this.CUE[jobObj.type][jobObj.contract].initHeight());
 		let period = this.web3.toDecimal(this.CUE[jobObj.type][jobObj.contract].period());
-		let since = this.web3.toDecimal(this.CUE[jobObj.type][jobOBj.contract].myInfo({from: addr})[0]);
+		let since = this.web3.toDecimal(this.CUE[jobObj.type][jobObj.contract].myInfo({from: addr})[0]);
 		let blockNumber = this.web3.eth.blockNumber;
 
 		// revealSecret(secret, score, slots, blockNo)

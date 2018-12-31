@@ -106,7 +106,7 @@ class BattleShip extends BladeIronClient {
 				return this.stopTrial();
 			}
 
-			return sendTk(this.ctrName)('revealSecret')(this.gameANS[this.initHeight].secret, this.bestANS.score, this.bestANS.slots, this.bestANS.blockNo)()
+			return this.sendTk(this.ctrName)('revealSecret')(this.gameANS[this.initHeight].secret, this.bestANS.score, this.bestANS.slots, this.bestANS.blockNo)()
 				.then((qid) => {
 					return this.getReceipts(qid).then((rc) => {
 						console.dir(rc[0]);

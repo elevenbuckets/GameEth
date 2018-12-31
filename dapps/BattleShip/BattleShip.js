@@ -86,6 +86,18 @@ class BattleShip extends BladeIronClient {
 				.catch((err) => { console.log(err); throw err; })
 		}
 
+		this.winnerTakes = () => 
+		{
+			let winner = this.call(this.ctrName)('winner')();
+
+			if (winner === this.address) {
+				return this.sendTk(this.ctrName)('withdraw')()
+			} else {
+				console.log(`Yeah Right...`);
+				return;
+			}
+		}
+
 		this.submitAnswer = (stats) => 
 		{
 			if (this.gameANS[this.initHeight].secret !== this.bestANS.secret) {

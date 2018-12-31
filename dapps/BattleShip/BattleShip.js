@@ -216,7 +216,7 @@ class BattleShip extends BladeIronClient {
 
                 this.moreSecret = (sizeOfSecrets) =>
                 {
-                        for (var i = 0; i<sizeOfSecrets; i++) { this.secretBanks.push(String(Math.random())); }
+                        for (var i = 0; i<sizeOfSecrets; i++) { this.secretBank.push(String(Math.random())); }
                 }
 	}
 }

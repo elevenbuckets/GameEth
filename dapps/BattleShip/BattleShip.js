@@ -20,6 +20,7 @@ class BattleShip extends BladeIronClient {
 		this.results = {};
 		this.blockBest = {};
 		this.bestANS = null;
+		this.gameANS = {};
 
 		this.probe = () => 
 		{
@@ -56,15 +57,70 @@ class BattleShip extends BladeIronClient {
 			let blockNo = stats.blockHeight;
 			return this.testOutcome(raw, blockNo);
 		}
+
+		this.register = (secret) => 
+		{
+			let msgSHA256Buffer = Buffer.from(secret.slice(2), 'hex');
+			let gameANS = {};
+			return this.client.call('unlockAndSign', [this.address, msgSHA256Buffer])
+				.then((data) => {
+					let fee = '10000000000000000';
+					let v = data.v;
+					let r = ethUtils.bufferToHex(Buffer.from(data.r));
+					let s = ethUtils.bufferToHex(Buffer.from(data.s));
+					gameANS = {secret, v,r,s};
+					return this.sendTk(this.ctrName)('challenge')(v,r,s)(fee);
+				})
+				.then((qid) => {
+					console.log(`DEBUG: QID = ${qid}`);
+					return this.getReceipts(qid).then((rc) => {
+						console.dir(rc);
+						let rx = rc[0];
+
+						if (rx.status === '0x1') {
+							gameANS['submitted'] = rx.blockNumber;
+							this.gameANS[this.initHeight] = gameANS;
+						}
+						return rx;
+					});
+				})
+				.catch((err) => { console.log(err); throw err; })
+		}
+
+		this.submitAnswer = (stats) => 
+		{
+			if (this.gameANS.secret !== this.bestANS.secret) {
+				console.log("secret altered after registration... Abort!");
+				return this.stopTrial();
+			} else if (stats.blockHeight < this.gameANS.submitted + 5) {
+				console.log(`Still waiting block number >= ${Number(this.gameANS.submitted) + 5} ...`);
+				return;
+			} else if (stats.blockHeight > this.initHeight + 125) {
+				console.log(`Game round ${this.initHeight} is now ended`);
+				this.gameStarted = false;
+				return this.stopTrial();
+			}
+
+			return sendTk(this.ctrName)('revealSecret')(this.gameANS[this.initHeight].secret, this.bestANS.score, this.bestANS.slots, this.bestANS.blockNo)()
+				.then((qid) => {
+					return this.getReceipts(qid).then((rc) => {
+						console.dir(rc[0]);
+						this.gameStarted = false;
+						this.stopTrial();
+					})
+				})
+		}
 	
 		this.trial = (stats) => 
 		{
 			if (!this.gameStarted) return [];
 			if (stats.blockHeight < this.initHeight + 5) return [];
-			if (stats.blockHeight >= this.initHeight + 110) {
+			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
+			if (stats.blockHeight >= this.initHeight + 120 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 3) ) {
 				this.stopTrial();
-				if (Object(this.blockBest).values.length > 0) {
-					this.bestANS = Object(this.blockBest).values.reduce((a,c) => 
+
+				if (Object.values(this.blockBest).length > 0) {
+					this.bestANS = Object.values(this.blockBest).reduce((a,c) => 
 					{
 						if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {
 							return c;
@@ -74,7 +130,12 @@ class BattleShip extends BladeIronClient {
 					})
 
 					console.log(`Best Answer:`); console.dir(this.bestANS);			
-					return "Please submit your answer (bestANS) before the game ends!!!!!";
+					return this.register(this.bestANS.secret)
+						   .then((rc) => {
+							console.dir(rc); 
+							this.client.subscribe('ethstats');
+							this.client.on('ethstats', this.submitAnswer);
+						   });
 				} else {
 					return;
 				}

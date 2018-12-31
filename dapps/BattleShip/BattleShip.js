@@ -52,13 +52,6 @@ class BattleShip extends BladeIronClient {
 			return this.call(this.ctrName)('testOutcome')(secret, blockNo).then((r) => { return [...r, secret]});
 		} 
 
-		this.testSimple = (stats) => 
-		{
-			let raw = '11BE test';
-			let blockNo = stats.blockHeight;
-			return this.testOutcome(raw, blockNo);
-		}
-
 		this.register = (secret) => 
 		{
 			let msgSHA256Buffer = Buffer.from(secret.slice(2), 'hex');
@@ -125,8 +118,8 @@ class BattleShip extends BladeIronClient {
 	
 		this.trial = (stats) => 
 		{
-			if (!this.gameStarted) return [];
-			if (stats.blockHeight < this.initHeight + 5) return [];
+			if (!this.gameStarted) return;
+			if (stats.blockHeight < this.initHeight + 5) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
 			if (stats.blockHeight >= this.initHeight + 120 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 3) ) {
 				this.stopTrial();
@@ -192,7 +185,7 @@ class BattleShip extends BladeIronClient {
 					}
 				})
 			})
-                        if (this.tryMore) { this.trySecret(this.tryMore, blockNo);}
+
 		}
 
 		this.stopTrial = () => 
@@ -202,14 +195,13 @@ class BattleShip extends BladeIronClient {
 			console.log('Trial stopped !!!');
 		}
 
-
-                this.tryMore = null;
-		this.startTrial = () => 
+		this.startTrial = (tryMore = 0) => 
 		{
-                        if (!isNaN(tryMore)) {
-                                if (tryMore > 1000) { console.warn(`Warning: your dictionary contains ${tryMore} words, may cause problems in some machines.`);}
-                                this.tryMore= tryMore;
-                        }
+                        if (tryMore > 0) { 
+				if (tryMore > 2000) tryMore = 2000;
+				this.moreSecret(tryMore); 
+			};
+
 			this.probe().then((started) => 
 			{
 				if(started) {
@@ -222,83 +214,10 @@ class BattleShip extends BladeIronClient {
 			})
 		}
 
-                this.blockInsideGame = (blockNo) =>
+                this.moreSecret = (sizeOfSecrets) =>
                 {
-                        if (blockNo < this.initHeight || blockNo > this.initHeight + this.gamePeriod) {
-                                return false;
-                        } else if (typeof(blockNo) === 'undefined') {
-                                return false;
-                        } else {
-                                return true;
-                        }
-                };
-
-                this.trySecret = (sizeOfSecrets, blockNo = this.initHeight + 5) =>
-                {
-                        if (!this.blockInsideGame(blockNo)) return ['not in game'];  // uncomment this line for test
-			if (blockNo < this.initHeight + 5) return [`wait until block ${this.initHeight+5}`];
-                        // if (typeof sizeOfSecrets !== 'number') {console.log('Pls input number'); return null}
-                        let secrets = [];
-                        for (var i = 0; i<sizeOfSecrets; i++) { secrets.push(String(Math.random()));}
-                        this.findBestSecret(secrets, blockNo);
-                        // this.currentBestANS();
-                };
-
-                this.findBestSecret = (secrets, blockNo) =>
-                {
-                        let localANS = [];
-                        let best;
-			secrets.map((s,idx) =>
-			{
-                                this.testOutcome(s, blockNo).then((results) =>
-                                {
-                                        let myboard = results[0];
-                                        let slots = results[1];
-                                        let secret = results[2];
-                                        let score = [ ...myboard ];
-
-                                        for (let i = 0; i <= 31; i ++) {
-                                                if (!slots[i]) {
-                                                        score[2+i*2] = this.board.charAt(2+i*2);
-                                                        score[2+i*2+1] = this.board.charAt(2+i*2+1);
-                                                }
-                                        }
-
-                                        localANS.push({myboard, score: score.join(''), secret, blockNo, slots, raw: s});
-                                        if (idx === secrets.length - 1) {
-                                                if (this.bestANS !== null ) { localANS.push(this.bestANS);}
-                                                best = localANS.reduce((a,c) =>
-                                                {
-                                                        if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {
-                                                                // console.dir(c);
-                                                                return c;
-                                                        } else {
-                                                                return a;
-                                                        }
-                                                });
-                                                this.blockBest[blockNo] = best;
-                                        }
-                                });
-                        });
-		};
-
-                this.currentBestANS = () =>
-                {
-                        if (Object.values(this.blockBest).length > 0) {
-                                this.bestANS = Object.values(this.blockBest).reduce((a,c) =>
-                                {
-                                        if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {
-                                                return c;
-                                        } else {
-                                                return a;
-                                        }
-                                });
-                                console.log('Best Answer:'); console.dir(this.bestANS);
-                        } else {
-                                return;
-                        }
-                };
-
+                        for (var i = 0; i<sizeOfSecrets; i++) { this.secretBanks.push(String(Math.random())); }
+                }
 	}
 }
 

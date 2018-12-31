@@ -1,7 +1,7 @@
 'use strict';
 
-const fs   = require('fs');
-const path = require('path');
+// const fs   = require('fs');
+// const path = require('path');
 const ethUtils = require('ethereumjs-utils');
 
 // 11BE BladeIron Client API
@@ -21,6 +21,8 @@ class BattleShip extends BladeIronClient {
 		this.blockBest = {};
 		this.bestANS = null;
 		this.gameANS = {};
+                // this.gameStalled = null;
+                this.gamePeriod = 125;  // defined in the smart contract
 
 		this.probe = () => 
 		{
@@ -122,6 +124,89 @@ class BattleShip extends BladeIronClient {
 				})
 		}
 	
+                this.blockInsideGame = (blockNo) =>
+                {
+                        if (blockNo < this.initHeight || blockNo > this.initHeight + this.gamePeriod) {
+                                return false;
+                        } else if (typeof(blockNo) === 'undefined') {
+                                return false;
+                        } else {
+                                return true;
+                        }
+                };
+
+                this.trySecret = (sizeOfSecrets, blockNo = this.initHeight + 5) =>
+                {
+                        if (!this.blockInsideGame(blockNo)) return ['not in game'];  // uncomment this line for test
+			if (blockNo < this.initHeight + 5) return [`wait until block ${this.initHeight+5}`];
+                        // if (typeof sizeOfSecrets !== 'number') {console.log('Pls input number'); return null}
+                        let secrets = [];
+                        for (var i = 0; i<sizeOfSecrets; i++) { secrets.push(String(Math.random()));}
+                        this.findBestSecret(secrets, blockNo);
+                        // this.currentBestANS();
+                };
+
+                this.findBestSecret = (secrets, blockNo) =>
+                {
+                        let localANS = [];
+                        let best;
+			secrets.map((s,idx) =>
+			{
+                                this.testOutcome(s, blockNo).then((results) =>
+                                {
+                                        let myboard = results[0];
+                                        let slots = results[1];
+                                        let secret = results[2];
+                                        let score = [ ...myboard ];
+
+                                        for (let i = 0; i <= 31; i ++) {
+                                                if (!slots[i]) {
+                                                        score[2+i*2] = this.board.charAt(2+i*2);
+                                                        score[2+i*2+1] = this.board.charAt(2+i*2+1);
+                                                }
+                                        }
+
+                                        localANS.push({myboard, score: score.join(''), secret, blockNo, slots, raw: s});
+                                        if (idx === secrets.length - 1) {
+                                                if (this.bestANS !== null ) { localANS.push(this.bestANS);}
+                                                best = localANS.reduce((a,c) =>
+                                                {
+                                                        if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {
+                                                                // console.dir(c);
+                                                                return c;
+                                                        } else {
+                                                                return a;
+                                                        }
+                                                });
+                                                this.blockBest[blockNo] = best;
+                                        }
+                                });
+                        });
+		};
+
+                this.currentBestANS = () =>
+                {
+                        if (Object.values(this.blockBest).length > 0) {
+                                this.bestANS = Object.values(this.blockBest).reduce((a,c) =>
+                                {
+                                        if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {
+                                                return c;
+                                        } else {
+                                                return a;
+                                        }
+                                });
+                                console.log('Best Answer:'); console.dir(this.bestANS);
+                                return this.register(this.bestANS.secret)
+                                           .then((rc) => {
+                                                console.dir(rc);
+                                                this.client.subscribe('ethstats');
+                                                this.client.on('ethstats', this.submitAnswer);
+                                           });
+                        } else {
+                                return;
+                        }
+                };
+
 		this.trial = (stats) => 
 		{
 			if (!this.gameStarted) return [];
@@ -129,69 +214,21 @@ class BattleShip extends BladeIronClient {
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
 			if (stats.blockHeight >= this.initHeight + 120 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 3) ) {
 				this.stopTrial();
-
-				if (Object.values(this.blockBest).length > 0) {
-					this.bestANS = Object.values(this.blockBest).reduce((a,c) => 
-					{
-						if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {
-							return c;
-						} else {
-							return a;
-						}
-					})
-
-					console.log(`Best Answer:`); console.dir(this.bestANS);			
-					return this.register(this.bestANS.secret)
-						   .then((rc) => {
-							console.dir(rc); 
-							this.client.subscribe('ethstats');
-							this.client.on('ethstats', this.submitAnswer);
-						   });
-				} else {
-					return;
-				}
+                                this.currentBestANS();
 			}
 
 			console.log('New Stats'); console.dir(stats);
 
-			let blockNo = stats.blockHeight - 1; console.log(blockNo);
-			let localANS = []; let best; 
-			let trialNonce = '0x' + parseInt(Math.random() * 1000, 16); 
-			this.secretBank.map((s,idx) => 
-			{
-				s = s + trialNonce;
-				this.testOutcome(s, blockNo).then((results) => 
-				{
-					let myboard = results[0]; 
-					let slots = results[1]; 
-					let secret = results[2];
+			let blockNo = stats.blockHeight - 1;
 
-					let score = [ ...myboard ];
-	
-					for (let i = 0; i <= 31; i ++) {
-						if (!slots[i]) {
-							score[2+i*2] = this.board.charAt(2+i*2);
-							score[2+i*2+1] = this.board.charAt(2+i*2+1);
-						}
-					}
-	
-					localANS.push({myboard, score: score.join(''), secret, blockNo, slots, raw: s});
-					//console.dir({score: score.join(''), secret, blockNo, slots});
-					if (idx === this.secretBank.length - 1) {
-						console.log("Batch " + blockNo + " done, calculating best answer ...");
-						best = localANS.reduce((a,c) => 
-						{
-							if(this.byte32ToBigNumber(c.score).lte(this.byte32ToBigNumber(a.score))) {
-								return c;
-							} else {
-								return a;
-							}
-						});
-						this.blockBest[blockNo] = best;
-					}
-				})
-			})
-		}
+			let trialNonce = '0x' + parseInt(Math.random() * 1000, 16); 
+                        let trialSecrets = this.secretBank.map( (s) => s + trialNonce );
+                        this.findBestSecret(trialSecrets, blockNo);
+
+                        if (this.tryMore) { this.trySecret(this.tryMore, blockNo);}
+
+                        // this.currentBestANS();
+		};
 
 		this.stopTrial = () => 
 		{
@@ -200,8 +237,13 @@ class BattleShip extends BladeIronClient {
 			console.log('Trial stopped !!!');
 		}
 
-		this.startTrial = () => 
+                this.tryMore = null;
+		this.startTrial = (tryMore) =>
 		{
+                        if (!isNaN(tryMore)) {
+                                if (tryMore > 1000) { console.warn(`Warning: your dictionary contains ${tryMore} words, may cause problems in some machines.`);}
+                                this.tryMore= tryMore;
+                        }
 			this.probe().then((started) => 
 			{
 				if(started) {
@@ -211,8 +253,8 @@ class BattleShip extends BladeIronClient {
 				} else {
 					console.log('Game has not yet been set ...');
 				}
-			})
-		}
+			});
+		};
 	}
 }
 

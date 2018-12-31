@@ -82,14 +82,14 @@ class BattleShip extends BladeIronClient {
 
 		this.winnerTakes = () => 
 		{
-			let winner = this.call(this.ctrName)('winner')();
-
-			if (winner === this.address) {
-				return this.sendTk(this.ctrName)('withdraw')()
-			} else {
-				console.log(`Yeah Right...`);
-				return;
-			}
+			return this.call(this.ctrName)('winner')().then((winner) => {
+				if (winner === this.address) {
+					return this.sendTk(this.ctrName)('withdraw')()()
+				} else {
+					console.log(`Yeah Right...`);
+					return;
+				}
+			})
 		}
 
 		this.submitAnswer = (stats) => 

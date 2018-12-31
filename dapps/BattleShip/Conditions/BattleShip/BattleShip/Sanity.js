@@ -2,8 +2,8 @@ module.exports =
 {
 	BattleShip_withdraw_sanity(addr, jobObj) 
 	{
-		let initHeight = this.CUE[jobObj.type][jobObj.contract].initHeight();
-		let period = this.CUE[jobObj.type][jobObj.contract].period();
+		let initHeight = this.web3.toDecimal(this.CUE[jobObj.type][jobObj.contract].initHeight());
+		let period = this.web3.toDecimal(this.CUE[jobObj.type][jobObj.contract].period());
 
 		if ( addr === this.CUE[jobObj.type][jobObj.contract].winner() 
 		  && this.web3.eth.blockNumber > initHeight + period

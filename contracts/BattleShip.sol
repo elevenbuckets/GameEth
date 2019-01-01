@@ -151,6 +151,7 @@ contract BattleShip {
 
 	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo) public gameStarted notDefender returns (bool) {
 		require(playerDB[msg.sender].since > initHeight);
+		require(battleHistory[initHeight][msg.sender].battle == 0);
 		require(block.number <= initHeight + period && block.number >= playerDB[msg.sender].since + 5);
 		require(block.number - blockNo < period - 5);
 		require(blockNo <= block.number - 1 && blockNo < initHeight + period && blockNo >= initHeight + 5);

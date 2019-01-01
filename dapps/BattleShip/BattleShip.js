@@ -80,13 +80,23 @@ class BattleShip extends BladeIronClient {
 				.catch((err) => { console.log(err); throw err; })
 		}
 
-		this.winnerTakes = () => 
+		this.winnerTakes = (stats) => 
 		{
+			if (stats.blockHeight <= this.initHeight + 125) return;
+			this.stopTrial();
+
 			return this.call(this.ctrName)('winner')().then((winner) => {
 				if (winner === this.address) {
 					return this.sendTk(this.ctrName)('withdraw')()()
+						   .then((qid) => {
+							this.gameStarted = false; 
+							return this.getReceipts(qid).then((rc) => {
+								console.dir(rc[0]);
+						   	})
+						   });
 				} else {
 					console.log(`Yeah Right...`);
+					this.gameStarted = false; 
 					return;
 				}
 			})
@@ -106,12 +116,14 @@ class BattleShip extends BladeIronClient {
 				return this.stopTrial();
 			}
 
+			this.stopTrial();
+
 			return this.sendTk(this.ctrName)('revealSecret')(this.gameANS[this.initHeight].secret, this.bestANS.score, this.bestANS.slots, this.bestANS.blockNo)()
 				.then((qid) => {
 					return this.getReceipts(qid).then((rc) => {
 						console.dir(rc[0]);
-						this.gameStarted = false;
-						this.stopTrial();
+						this.client.subscribe('ethstats');
+						this.client.on('ethstats', this.winnerTakes);
 					})
 				})
 		}

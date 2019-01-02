@@ -21,7 +21,7 @@ contract RNT is StandardToken {
 
     constructor() public {
        owner = msg.sender;
-       _totalSupply = 300000000000000000;
+       totalSupply = 300000000000000000;
        _balances[0xB440ea2780614b3c6a00e512f432785E7dfAFA3E] = 100000000000000000;
        _balances[0x4AD56641C569C91C64C28a904cda50AE5326Da41] = 100000000000000000;
        _balances[0x362ea687b8a372a0235466a097e578d55491d37f] = 100000000000000000;
@@ -36,25 +36,25 @@ contract RNT is StandardToken {
     }
 
     // TODO: Making mining contract upgradable while limit owner from changing this arbitrarily
-    function setMining(address miningAddress) ownerOnly public external returns (bool) {
+    function setMining(address miningAddress) ownerOnly external returns (bool) {
 	require(mining == address(0)); // For now, only allow this to be called once.
 	mining = miningAddress;
 
 	return true;
     }
 
-    function mint(address toAddress) miningOnly public external returns (bool) {
-	require(_totalSupply < _maxSupply);
+    function mint(address toAddress) miningOnly external returns (bool) {
+	require(totalSupply < _maxSupply);
 	_balances[toAddress] += reward;
-	_totalSupply += reward;
+	totalSupply += reward;
 
 	return true;
     }
 
-    function burn(uint256 amount) public external returns (bool) {
+    function burn(uint256 amount) external returns (bool) {
 	require(_balances[msg.sender] >= amount);
 	_balances[msg.sender] -= amount;
-	_totalSupply -= amount;
+	totalSupply -= amount;
 
 	return true;
     }

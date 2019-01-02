@@ -1,11 +1,15 @@
 pragma solidity ^0.4.24;
 
 import "./ERC20.sol";
+import "./SafeMath.sol";
+import "./RNTInterface.sol";
 
 contract BattleShip {
+	using SafeMath for uint256;
 	// Variables
 	address public defender;
 	address public winner;
+	address public RNTAddr;
 	uint constant public maxPlayer = 1000;
 	uint constant public period = 125;
 	uint public initHeight;
@@ -72,9 +76,10 @@ contract BattleShip {
 	}
 
 	// Contract constructor
-	constructor(bytes32 _init) public payable {
+	constructor(bytes32 _init, address _RNTAddr) public payable {
 		require(msg.value >= fee);
 		defender = msg.sender;
+		RNTAddr  = _RNTAddr;
 
 		require(fortify(_init) == true);
 	}
@@ -86,7 +91,10 @@ contract BattleShip {
 		winner = address(0);
 		board = bytes32(0);
 		playercount = 0;
-		require(msg.sender.send(address(this).balance) == true);
+
+		uint256 reward = uint256(address(this).balance).mul(uint256(6)) / uint256(10);
+		require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+		require(msg.sender.send(reward) == true);
 
 		return true;
 	}

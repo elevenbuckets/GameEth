@@ -10,14 +10,7 @@ contract StandardToken is ERC20 {
     // The outside mapping key will be the owner, and the inside mapping key is spender
     mapping (address => mapping (address => uint256)) private _allowed;
     
-    uint256 private _totalSupply;
-
-    /**
-    * @dev Total numbers of tokens in existence
-    */
-    function totalSupply() public view returns (uint256){
-        return _totalSupply;
-    }
+    uint256 public totalSupply;
 
     /**
     * @dev Gets the balance of the specified address.

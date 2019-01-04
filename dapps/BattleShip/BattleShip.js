@@ -133,7 +133,7 @@ class BattleShip extends BladeIronClient {
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 5) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
-			if (stats.blockHeight >= this.initHeight + 120 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 3) ) {
+			if (stats.blockHeight >= this.initHeight + 119 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 7) ) {
 				this.stopTrial();
 
 				if (Object.values(this.blockBest).length > 0) {

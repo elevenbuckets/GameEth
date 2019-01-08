@@ -11,13 +11,14 @@ contract BattleShip {
 	address public winner;
 	address public RNTAddr;
 	uint constant public maxPlayer = 1000;
-	uint constant public period = 125;
+	uint constant public period = 11;
 	uint public initHeight;
 	bytes32 public difficulty = 0x000000000000000000000000000000ffffffffffffffffffffffffffffffffff;
 	bytes32 public board;
 	uint public fee = 10000000000000000;
 	bool public setup = false;
 	uint public playercount = 0;
+	bytes32[3] private samGroup;
 
 	struct playerInfo {
 		address wallet; // msg.sender
@@ -99,9 +100,8 @@ contract BattleShip {
 		return true;
 	}
 
-	// Constant functions
-	function equalTest(bytes32 a, bytes32 b, uint slot) public pure returns (byte, byte) {
-		return (a[slot], b[slot]);
+	function randomNumber public view returns (bytes32) {
+		return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], blockhash(block.number - 1)));
 	}
 
 	function myInfo() public view returns (uint, uint8, bytes32, bytes32, uint) {
@@ -157,6 +157,22 @@ contract BattleShip {
 		return (_board, _slots);
 	}
 
+	function reviveReward() public gameStarted notDefender returns (bool) {
+		require(battleHistory[initHeight][msg.sender].battle == initHeight);
+		require(block.number == initHeight + period);
+
+		bytes32 memory _board = keccak256(abi.encodePacked(battleHistory[initHeight][msg.sender].score, blockhash(block.number - 1)));
+
+		if (_board[30] == defense[30] && _board[31] == defense[31]) {
+			battleHistory[initHeight][msg.sender].battle = 0;
+			samGroup[2] = _board;
+			require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+			return true;
+		} else {
+			revert();
+		}
+	}
+
 	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo) public gameStarted notDefender returns (bool) {
 		require(playerDB[msg.sender].since > initHeight);
 		require(battleHistory[initHeight][msg.sender].battle == 0);
@@ -185,9 +201,14 @@ contract BattleShip {
 		// ToDo: majority merkle root voting and checking of each submission 
 		if (winner == address(0) && newbat.score < board) {
 			winner = msg.sender;
+			samGroup[0] = newbat.score;
 		} else if (newbat.score < battleHistory[initHeight][winner].score) {
 			winner = msg.sender;
+			samGroup[1] = samGroup[0];
+			samGroup[0] = newbat.score;
 		}
+
+		samGroup[2] = newbat.score;
 
 		return true;
 	}

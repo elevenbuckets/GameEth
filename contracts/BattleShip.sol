@@ -11,14 +11,16 @@ contract BattleShip {
 	address public winner;
 	address public RNTAddr;
 	uint constant public maxPlayer = 1000;
-	uint constant public period = 11;
+	uint constant public period = 125;
 	uint public initHeight;
+	uint public lastActivity;
 	bytes32 public difficulty = 0x000000000000000000000000000000ffffffffffffffffffffffffffffffffff;
 	bytes32 public board;
 	uint public fee = 10000000000000000;
 	bool public setup = false;
 	uint public playercount = 0;
-	bytes32[3] private samGroup;
+	bytes32[4] private samGroup;
+	bytes32 private lastRevived;
 
 	struct playerInfo {
 		address wallet; // msg.sender
@@ -91,6 +93,8 @@ contract BattleShip {
 		setup = false;
 		winner = address(0);
 		board = bytes32(0);
+		lastRevived = bytes32(0);
+		samGroup[3] = bytes32(0);
 		playercount = 0;
 
 		uint256 reward = uint256(address(this).balance).mul(uint256(6)) / uint256(10);
@@ -101,7 +105,9 @@ contract BattleShip {
 	}
 
 	function randomNumber() public view returns (bytes32) {
-		return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], blockhash(block.number - 1)));
+		require(lastRevived != samGroup[3] && samGroup[3] != bytes32(0));
+		require(block.number - lastActivity <= 5);
+		return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], samGroup[3], blockhash(block.number - 1)));
 	}
 
 	function myInfo() public view returns (uint, uint8, bytes32, bytes32, uint) {
@@ -120,6 +126,8 @@ contract BattleShip {
 		playerDB[msg.sender] = newone;
 		playercount += 1;
 		setup = true;
+		lastRevived = bytes32(0);
+		samGroup[3] = bytes32(0);
 
 		return true;
 	}
@@ -127,6 +135,7 @@ contract BattleShip {
 	// Join game
 	function challenge(uint8 v, bytes32 r, bytes32 s) public payable feePaid notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].since < initHeight);
+		require(block.number <= initHeight + 6);
 		require(playercount + 1 <= maxPlayer);
 
 		playerInfo memory newone;
@@ -144,7 +153,7 @@ contract BattleShip {
 	function testOutcome(bytes32 secret, uint blockNo) public gameStarted view returns (bytes32 _board, bool[32] memory _slots) {
 		require(block.number <= initHeight + period && block.number >= initHeight);
 		require(block.number - blockNo < period - 5);
-		require(blockNo <= block.number - 1 && blockNo < initHeight + period && blockNo >= initHeight + 5);
+		require(blockNo <= block.number - 1 && blockNo < initHeight + period && blockNo > initHeight + 5);
 
 		_board = keccak256(abi.encodePacked(secret, blockhash(blockNo)));
 
@@ -159,13 +168,17 @@ contract BattleShip {
 
 	function reviveReward() public gameStarted notDefender returns (bool) {
 		require(battleHistory[initHeight][msg.sender].battle == initHeight);
-		require(block.number == initHeight + period);
+		require(block.number > initHeight + 10);
 
 		bytes32 _board = keccak256(abi.encodePacked(battleHistory[initHeight][msg.sender].score, blockhash(block.number - 1)));
 
+		assert(_board != samGroup[3]);
+			
 		if (_board[30] == board[30] && _board[31] == board[31]) {
-			battleHistory[initHeight][msg.sender].battle = 0;
-			samGroup[2] = _board;
+			battleHist`ory[initHeight][msg.sender].battle = 0;
+			lastRevived = samGroup[3];
+			samGroup[3] = _board;
+			lastActivity = block.number;
 			require(RNTInterface(RNTAddr).mint(msg.sender) == true);
 			return true;
 		} else {
@@ -174,11 +187,13 @@ contract BattleShip {
 	}
 
 	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo) public gameStarted notDefender returns (bool) {
+		require(score != board);
+		require(score != battleHistory[initHeight][msg.sender].score);
 		require(playerDB[msg.sender].since > initHeight);
 		require(battleHistory[initHeight][msg.sender].battle == 0);
 		require(block.number <= initHeight + period && block.number >= playerDB[msg.sender].since + 5);
 		require(block.number - blockNo < period - 5);
-		require(blockNo <= block.number - 1 && blockNo < initHeight + period && blockNo >= initHeight + 5);
+		require(blockNo <= block.number - 1 && blockNo < initHeight + period && blockNo > initHeight + 5);
 		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", secret)), playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s) == msg.sender);
 
 		battleStat memory newbat;
@@ -206,10 +221,11 @@ contract BattleShip {
 			winner = msg.sender;
 			samGroup[1] = samGroup[0];
 			samGroup[0] = newbat.score;
+		} else {
+			samGroup[2] = newbat.score;
 		}
 
-		samGroup[2] = newbat.score;
-
+		lastActivity = block.number;
 		return true;
 	}
 

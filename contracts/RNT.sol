@@ -7,7 +7,7 @@ contract RNT is StandardToken {
     uint256 public _maxSupply = 100000000000000000000000;
     address public owner;
     address public mining;
-    uint256 public reward = 150000000000000;
+    uint256 public reward = 15000000000000;
 
     modifier ownerOnly() {
        require(msg.sender == owner);

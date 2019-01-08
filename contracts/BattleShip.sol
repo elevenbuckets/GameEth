@@ -100,7 +100,7 @@ contract BattleShip {
 		return true;
 	}
 
-	function randomNumber public view returns (bytes32) {
+	function randomNumber() public view returns (bytes32) {
 		return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], blockhash(block.number - 1)));
 	}
 
@@ -161,9 +161,9 @@ contract BattleShip {
 		require(battleHistory[initHeight][msg.sender].battle == initHeight);
 		require(block.number == initHeight + period);
 
-		bytes32 memory _board = keccak256(abi.encodePacked(battleHistory[initHeight][msg.sender].score, blockhash(block.number - 1)));
+		bytes32 _board = keccak256(abi.encodePacked(battleHistory[initHeight][msg.sender].score, blockhash(block.number - 1)));
 
-		if (_board[30] == defense[30] && _board[31] == defense[31]) {
+		if (_board[30] == board[30] && _board[31] == board[31]) {
 			battleHistory[initHeight][msg.sender].battle = 0;
 			samGroup[2] = _board;
 			require(RNTInterface(RNTAddr).mint(msg.sender) == true);

@@ -21,7 +21,7 @@ class BattleShip extends BladeIronClient {
 		this.blockBest = {};
 		this.bestANS = null;
 		this.gameANS = {};
-                this.gamePeriod = 125;  // defined in the smart contract
+                this.gamePeriod = 11;  // defined in the smart contract
 
 		this.probe = () => 
 		{
@@ -82,7 +82,7 @@ class BattleShip extends BladeIronClient {
 
 		this.winnerTakes = (stats) => 
 		{
-			if (stats.blockHeight <= this.initHeight + 125) return;
+			if (stats.blockHeight <= this.initHeight + this.gamePeriod) return;
 			this.stopTrial();
 
 			return this.call(this.ctrName)('winner')().then((winner) => {
@@ -110,7 +110,7 @@ class BattleShip extends BladeIronClient {
 			} else if (stats.blockHeight < Number(this.gameANS[this.initHeight].submitted) + 5) {
 				console.log(`Still waiting block number >= ${Number(this.gameANS[this.initHeight].submitted) + 5} ...`);
 				return;
-			} else if (stats.blockHeight > this.initHeight + 125) {
+			} else if (stats.blockHeight > this.initHeight + this.gamePeriod) {
 				console.log(`Game round ${this.initHeight} is now ended`);
 				this.gameStarted = false;
 				return this.stopTrial();
@@ -133,7 +133,7 @@ class BattleShip extends BladeIronClient {
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 5) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
-			if (stats.blockHeight >= this.initHeight + 119 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 7) ) {
+			if (stats.blockHeight >= this.initHeight + 6 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) ) {
 				this.stopTrial();
 
 				if (Object.values(this.blockBest).length > 0) {

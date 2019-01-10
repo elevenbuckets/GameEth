@@ -3,6 +3,8 @@
 const fs   = require('fs');
 const path = require('path');
 const ethUtils = require('ethereumjs-utils');
+const biapi = require('bladeiron_api');
+const MerkleTree = require('./merkle.js');
 
 // 11BE BladeIron Client API
 const BladeIronClient = require('bladeiron_api');
@@ -133,7 +135,7 @@ class BattleShip extends BladeIronClient {
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 5) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
-			if (stats.blockHeight > this.initHeight + 6 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 7) ) {
+			if (stats.blockHeight >= this.initHeight + 6 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) ) {
 				this.stopTrial();
 
 				if (Object.values(this.blockBest).length > 0) {
@@ -230,6 +232,96 @@ class BattleShip extends BladeIronClient {
                 {
                         for (var i = 0; i<sizeOfSecrets; i++) { this.secretBank.push(String(Math.random())); }
                 }
+
+                // below are several functions for state channel, the 'v_' ones are for validator
+                this.leaves = [];
+                this.subscribeChannel = (topic) =>
+                {
+                        this.channelName = topic;
+                        ips_pubsub_subscribe(topic)((msg) => {
+                                this.leaves.push(msg.payload);
+                        });
+                };
+
+                this.unsubscribeChannel = () =>
+                {
+                        ips_pubsub_unsubscribe(this.channelName).then(()=>{
+                                this.channelName = '';
+                        })
+                };
+
+                this.submitChannel = (hashedScore) =>
+                {
+                        const fields = 
+                        [
+                           {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
+                           {name: 'validatorAddress', length: 20, allowZero: true, default: new Buffer([]) },
+                           {name: 'originAddress', length: 20, allowZero: true, default: new Buffer([]) },
+                           {name: 'timestamp', length: 32, allowLess: true, default: new Buffer([]) },
+                           {name: 'payload', length: 32, allowLess: false, default: new Buffer([]) }
+                        ];
+                        let params = 
+                        {
+                                nonce: 0,
+                                type: 0,
+                                originAddress: '0x0',
+                                validatorAddress: '0x0',
+                                timestamp: 0,
+                                payload: hashedScore  // or ticketNumber (or hash(ticketNumber))
+                        };
+                        let data = biapi.abi.encodeParameters(
+                            ['uint', 'address', 'address', 'uint', 'bytes32' ],
+                            [params.nonce, params.validatorAddress, params.originAddress, params.timestamp, params.payload]
+                        );
+                        let datahash = ethUtils.hashPersonalMessage(new Buffer(data)); 
+                        let signature = ethUtils.ecsign(datahash, pkey, 4);  // where's pkey
+	                let mesh11 = {};
+                        ethUtils.defineProperties(mesh11, fields, [...params, ...signature]);
+                        return mesh11.serialize();
+                };
+
+
+                this.v_announce = () => 
+                {
+                        ipfs_pubsub_publish(this.channelName, Buffer.from('Stop submiting scores') ).then(()={
+                                this.v_uploadMerkleTree(this.leaves);
+                        }); 
+                        // Perhaps user sign-in should be entirely off-chain, i.e., no playerDB in contract. 
+                        // 1. It's possible that user has registered on-chain (added to playerDB) 
+                        //    and somehow failed to submit here. Perhaps user data entirely off-chain?
+                        // 2. hard to make sure this annoucement and generation/submision of Merkle Tree
+                        //    is on time
+                };
+
+
+                this.merkleTree = new MerkleTree();
+                this.v_makeMerkleTreeAndUploadRoot = (leaves) => {
+                        merkleTree.addLeaves(leaves); 
+                        merkleTree.makeTree();
+                        merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
+	                return this.call(this.ctrName)('submitMerkleRoot')(merkleRoot, 0);
+                };
+
+                this.validateMerkleProof = (targetLeaf) => {
+                        if (this.merkleTree.isReady) {
+                                let txIdx = this.merkleTree.leaves.findIndex(x=> Buffer.compare(x, targetLeaf)==0);
+                                if (txIdx == -1) {
+                                        return false;
+                                };
+                        };
+                        let proofArr = merkleTree.getProof(txIdx, true);
+                        let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});
+                        let isLeft = proofArr[0];
+                        let targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
+                        let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
+                        return this.call('MerkleTreeValidator')('validate')(proof, isLeft, targetLeaf, merkleRoot).then((tf) => { return tf;});
+                };
+
+                this.submitMerkleRoot = (id) =>  // id : either 0 or 1
+                {
+                        merkleRoot = this.makeMerkleTree();  // how to obtain leaves?
+			return this.call(this.ctrName)('submitMerkleRoot')(merkleRoot, id);
+                };
 	}
 }
 

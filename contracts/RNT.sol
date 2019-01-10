@@ -37,7 +37,7 @@ contract RNT is StandardToken {
 
     // TODO: Making mining contract upgradable while limit owner from changing this arbitrarily
     function setMining(address miningAddress) ownerOnly external returns (bool) {
-	require(mining == address(0)); // For now, only allow this to be called once.
+	//require(mining == address(0)); // For debug, allow this to be changed many times
 	mining = miningAddress;
 
 	return true;

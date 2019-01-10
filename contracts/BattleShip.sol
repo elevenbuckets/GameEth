@@ -167,6 +167,22 @@ contract BattleShip {
 		return (_board, _slots);
 	}
 
+	function reviveReward() public gameStarted notDefender returns (bool) {
+		require(battleHistory[initHeight][msg.sender].battle == initHeight);
+		require(block.number == initHeight + period);
+
+		bytes32 _board = keccak256(abi.encodePacked(battleHistory[initHeight][msg.sender].score, blockhash(block.number - 1)));
+
+		if (_board[30] == board[30] && _board[31] == board[31]) {
+			battleHistory[initHeight][msg.sender].battle = 0;
+			samGroup[2] = _board;
+			require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+			return true;
+		} else {
+			revert();
+		}
+	}
+
 	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo, uint8 v, bytes32 r, bytes32 s, bytes32[] proofs) public gameStarted notDefender returns (bool) {
 		require(playerDB[msg.sender].since > initHeight);
 		require(battleHistory[initHeight][msg.sender].battle == 0);  // one of the few places use the ".battle", alternatives?
@@ -238,15 +254,6 @@ contract BattleShip {
                 }
 	}
 
-	function randomNumber public view returns (bytes32) {
-		return keccak256(abi.encodePacked(sampleGroup[0], sampleGroup[1], sampleGroup[2], blockhash(block.number - 1)));
-	}
-
-	function myInfo() public view returns (uint, uint8, bytes32, bytes32, uint) {
-		return (playerDB[msg.sender].since, playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s, initHeight);
-	}
-
-
         function MerkleTreeValidator(bytes32[] memory proof, bool[] memory isLeft, bytes32 targetLeaf, bytes32 merkleRoot) external view returns (bool) {
                 require(proof.length < 16);  // 16 is an arbitrary number, 2**16=65536 shoud be large enough
                 require(proof.length == isLeft.length);
@@ -259,6 +266,14 @@ contract BattleShip {
 	        merkleRoot[i] = _merkleRoot;
 	        return true;
         }
+
+	function randomNumber() public view returns (bytes32) {
+		return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], blockhash(block.number - 1)));
+	}
+
+	function myInfo() public view returns (uint, uint8, bytes32, bytes32, uint) {
+		return (playerDB[msg.sender].since, playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s, initHeight);
+	}
 
 	// WinnerOnly
 	function withdraw() public WinnerOnly returns (bool) {

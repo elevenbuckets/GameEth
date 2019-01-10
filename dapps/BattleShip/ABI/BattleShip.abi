@@ -2,6 +2,20 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "RNTAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "difficulty",
     "outputs": [
       {
@@ -144,6 +158,10 @@
       {
         "name": "_init",
         "type": "bytes32"
+      },
+      {
+        "name": "_RNTAddr",
+        "type": "address"
       }
     ],
     "payable": true,
@@ -171,33 +189,16 @@
   },
   {
     "constant": true,
-    "inputs": [
-      {
-        "name": "a",
-        "type": "bytes32"
-      },
-      {
-        "name": "b",
-        "type": "bytes32"
-      },
-      {
-        "name": "slot",
-        "type": "uint256"
-      }
-    ],
-    "name": "equalTest",
+    "inputs": [],
+    "name": "randomNumber",
     "outputs": [
       {
         "name": "",
-        "type": "bytes1"
-      },
-      {
-        "name": "",
-        "type": "bytes1"
+        "type": "bytes32"
       }
     ],
     "payable": false,
-    "stateMutability": "pure",
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -301,6 +302,20 @@
     ],
     "payable": false,
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "reviveReward",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

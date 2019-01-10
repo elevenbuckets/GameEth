@@ -235,17 +235,29 @@ class BattleShip extends BladeIronClient {
 
                 // below are several functions for state channel, the 'v_' ones are for validator
                 this.leaves = [];
-                this.subscribeChannel = (topic) =>
+                this.subscribeChannel = () =>
                 {
-                        this.channelName = topic;
-                        ips_pubsub_subscribe(topic)((msg) => {
+                        this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
+
+			// validator handler
+                        this.ipfs_pubsub_subscribe(this.channelName)((msg) => {
+				// verify incomming data:
+				// decodable?
+				// all necessary fields?
+				// signature?
+				// valid nonce? 
+				// active membership?
+				//
+				// ALL need to pass before adding leaf
                                 this.leaves.push(msg.payload);
                         });
+
+			// regular user *only* need to monitor for stop block submission message
                 };
 
                 this.unsubscribeChannel = () =>
                 {
-                        ips_pubsub_unsubscribe(this.channelName).then(()=>{
+                        this.ipfs_pubsub_unsubscribe(this.channelName).then(()=>{
                                 this.channelName = '';
                         })
                 };
@@ -258,13 +270,17 @@ class BattleShip extends BladeIronClient {
                            {name: 'validatorAddress', length: 20, allowZero: true, default: new Buffer([]) },
                            {name: 'originAddress', length: 20, allowZero: true, default: new Buffer([]) },
                            {name: 'timestamp', length: 32, allowLess: true, default: new Buffer([]) },
-                           {name: 'payload', length: 32, allowLess: false, default: new Buffer([]) }
+                           {name: 'payload', length: 32, allowLess: false, default: new Buffer([]) },
+   			   {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
+   			   {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
+   			   {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
                         ];
+
                         let params = 
                         {
                                 nonce: 0,
                                 type: 0,
-                                originAddress: '0x0',
+                                originAddress: this.address,
                                 validatorAddress: '0x0',
                                 timestamp: 0,
                                 payload: hashedScore  // or ticketNumber (or hash(ticketNumber))
@@ -273,17 +289,19 @@ class BattleShip extends BladeIronClient {
                             ['uint', 'address', 'address', 'uint', 'bytes32' ],
                             [params.nonce, params.validatorAddress, params.originAddress, params.timestamp, params.payload]
                         );
-                        let datahash = ethUtils.hashPersonalMessage(new Buffer(data)); 
-                        let signature = ethUtils.ecsign(datahash, pkey, 4);  // where's pkey
+                        let datahash = ethUtils.hashPersonalMessage(new Buffer(data));
 	                let mesh11 = {};
-                        ethUtils.defineProperties(mesh11, fields, [...params, ...signature]);
-                        return mesh11.serialize();
+
+			return this.client.call('unlockAndSign', [this.address, datahash]).then((signature) => {
+                        	ethUtils.defineProperties(mesh11, fields, [...params, ...signature]);
+                        	return mesh11.serialize();
+			})
                 };
 
 
                 this.v_announce = () => 
                 {
-                        ipfs_pubsub_publish(this.channelName, Buffer.from('Stop submiting scores') ).then(()={
+                        this.ipfs_pubsub_publish(this.channelName, Buffer.from('Stop submiting scores') ).then(()={
                                 this.v_uploadMerkleTree(this.leaves);
                         }); 
                         // Perhaps user sign-in should be entirely off-chain, i.e., no playerDB in contract. 

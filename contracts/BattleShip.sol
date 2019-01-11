@@ -1,9 +1,9 @@
 pragma solidity ^0.4.24;
 
-import "./ERC20.sol";
+// import "./ERC20.sol";
 import "./SafeMath.sol";
 // import "./RNTInterface.sol";
-import "./MerkleTreeValidatorInterface.sol";
+// import "./MerkleTreeValidatorInterface.sol";
 
 // About the game
 // # Roles
@@ -35,27 +35,29 @@ contract BattleShip {
 	// Variables
 	address public defender;
 	address public winner;
+	address public validator;
 	// address public RNTAddr;
 	uint constant public maxPlayer = 1000;
 	uint constant public period1 = 5;
 	uint constant public period2 = 3;
 	uint constant public period3 = 22;
-	uint constant public period_all = period1 + period2 + period3  // shoudl be in the range 30-120
+	uint constant public period_all = period1 + period2 + period3;  // shoudl be in the range 30-120
 	uint public initHeight;
 	uint public lastActivity;
-	// bytes32 public difficulty = 0x000000000000000000000000000000ffffffffffffffffffffffffffffffffff;
+	bytes32 public difficulty = 0x000000000000000000000000000000ffffffffffffffffffffffffffffffffff;
 	bytes32 public board;
 	uint public fee = 10000000000000000;
 	bool public setup = false;
 	uint public playercount = 0;
 	bytes32[4] private samGroup;
 	bytes32 private lastRevived;
-	bytes32[2] public merkleRoot; // leaves of 1st tree: hash(score), 2nd: tickets. submitted by validator
-        address constant public MerkleTreeAddr = 0x127bfc8AFfdCaeee6043e7eC79239542e5A470B7;
+	// bytes32[2] public merkleRoot; // leaves of 1st tree: hash(score), 2nd: tickets. submitted by validator
+        // address constant public MerkleTreeAddr = 0x127bfc8AFfdCaeee6043e7eC79239542e5A470B7;
 
 	struct playerInfo {
 		address wallet; // msg.sender
 		uint since;     // block height when joined
+		uint maxNonce;
 	}
 
 	struct battleStat {
@@ -109,10 +111,10 @@ contract BattleShip {
 	}
 
 	// Contract constructor
-	constructor(bytes32 _init, address _validator) public payable {
+	constructor(bytes32 _init) public payable {
 		require(msg.value >= fee);
 		defender = msg.sender;
-		validator = _validator;
+		validator = msg.sender;
 		// RNTAddr  = _RNTAddr;
 
 		require(fortify(_init) == true);
@@ -128,10 +130,9 @@ contract BattleShip {
 		samGroup[3] = bytes32(0);
 		playercount = 0;
 
-		uint256 reward = uint256(address(this).balance).mul(uint256(6)) / uint256(10);
-		require(RNTInterface(RNTAddr).mint(msg.sender) == true);
-		require(msg.sender.send(reward) == true);
-
+		// uint256 reward = uint256(address(this).balance).mul(uint256(6)) / uint256(10);
+		// require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+		// require(msg.sender.send(reward) == true);
 		return true;
 	}
 
@@ -141,8 +142,8 @@ contract BattleShip {
 		return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], samGroup[3], blockhash(block.number - 1)));
 	}
 
-	function myInfo() public view returns (uint, uint8, bytes32, bytes32, uint) {
-		return (playerDB[msg.sender].since, playerDB[msg.sender].v, playerDB[msg.sender].r, playerDB[msg.sender].s, initHeight);
+	function getPlayerInfo() public view returns (uint, uint, uint) {
+		return (playerDB[msg.sender].since, initHeight, playerDB[msg.sender].maxNonce);
 	}
 
 	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {
@@ -152,6 +153,7 @@ contract BattleShip {
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
 		board = defense;
+		newone.maxNonce = 100;
 
 		initHeight = block.number;
 		playerDB[msg.sender] = newone;
@@ -166,13 +168,14 @@ contract BattleShip {
 	// Join game
 	function challenge() public payable feePaid notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].since < initHeight);
-		require(block.number < initHeight + 5);
+		require(block.number < initHeight + period1 && block.number > initHeight);
 		require(playercount + 1 <= maxPlayer);
 
 		playerInfo memory newone;
 
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
+		newone.maxNonce = 10;  // for test
 
 		playerDB[msg.sender] = newone;
 		playercount += 1;
@@ -196,27 +199,27 @@ contract BattleShip {
 		return (_board, _slots);
 	}
 
-	function reviveReward() public gameStarted notDefender returns (bool) {
-		require(battleHistory[initHeight][msg.sender].battle == initHeight);
-		require(block.number > initHeight + 10);
+	// function reviveReward() public gameStarted notDefender returns (bool) {
+	// 	require(battleHistory[initHeight][msg.sender].battle == initHeight);
+	// 	require(block.number > initHeight + 10);
 
-		bytes32 _board = keccak256(abi.encodePacked(battleHistory[initHeight][msg.sender].score, blockhash(block.number - 1)));
+	// 	bytes32 _board = keccak256(abi.encodePacked(battleHistory[initHeight][msg.sender].score, blockhash(block.number - 1)));
 
-		assert(_board != samGroup[3]);
+	// 	assert(_board != samGroup[3]);
 			
-		if (_board[30] == board[30] && _board[31] == board[31]) {
-			battleHist`ory[initHeight][msg.sender].battle = 0;
-			lastRevived = samGroup[3];
-			samGroup[3] = _board;
-			lastActivity = block.number;
-			require(RNTInterface(RNTAddr).mint(msg.sender) == true);
-			return true;
-		} else {
-			revert();
-		}
-	}
+	// 	if (_board[30] == board[30] && _board[31] == board[31]) {
+	// 		battleHist`ory[initHeight][msg.sender].battle = 0;
+	// 		lastRevived = samGroup[3];
+	// 		samGroup[3] = _board;
+	// 		lastActivity = block.number;
+	// 		require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+	// 		return true;
+	// 	} else {
+	// 		revert();
+	// 	}
+	// }
 
-	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo, uint8 v, bytes32 r, bytes32 s, bytes32[] proofs) public gameStarted notDefender returns (bool) {
+	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo, uint8 v, bytes32 r, bytes32 s) public gameStarted notDefender returns (bool) {
 		require(score != board);
 		require(score != battleHistory[initHeight][msg.sender].score);
 		require(playerDB[msg.sender].since > initHeight);
@@ -224,14 +227,14 @@ contract BattleShip {
 		require(block.number <= initHeight + period1 + period2);
 		require(block.number - blockNo < period1);
 		require(blockNo <= block.number - 1 && blockNo < initHeight + period1 && blockNo > initHeight);
-		require(merkleRoot[0] != 0x0)
-		// todo: require(merkleProofValidate(proofs, keccak256(score), merkleRoot[0])
+		// require(merkleRoot[0] != 0x0);
+		// todo: require(merkleProofValidate(proofs, keccak256(score), merkleRoot[0]);
 		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(score))), v, r, s) == msg.sender);
 
 		battleStat memory newbat;
 		newbat.battle = initHeight;
 		newbat.secret = secret;
-		newbat.bhash = blockhash(blockNo);
+		// newbat.bhash = blockhash(blockNo);
 		newbat.score = keccak256(abi.encodePacked(secret, blockhash(blockNo))); // initialize for the loop below
 
 		for (uint i = 0; i <= 31; i++) {
@@ -262,44 +265,45 @@ contract BattleShip {
 		// state channel has to send out ticket after block 'm', i.e., end of revealSecret()
 	}
 
-	function lottery(bytes32[] tickets[]) public gameStarted notDefender returns (bool) {
-		require(battleHistory[initHeight][msg.sender].battle == initHeight);
-		require(block.number > initHeight + period1 + period2 && block.number <= initHeight + period_all);
-		require(tickets.length <= 5);
-		// todo:
-		// require(merkleProofValidate(proofs, tickets[0], merkleRoot[1]);  // verify existence of ticket
-		// require(merkleProofValidate(proofs, tickets[1], merkleRoot[1]);  // can one loop in 'require'?
-		// require(merkleProofValidate(proofs, tickets[2], merkleRoot[1]);  // or deal with array in the function
-		// require(merkleProofValidate(proofs, tickets[3], merkleRoot[1]);
-		// require(merkleProofValidate(proofs, tickets[4], merkleRoot[1]);
+	// function lottery(bytes32[] tickets) public gameStarted notDefender returns (bool) {
+	// 	require(battleHistory[initHeight][msg.sender].battle == initHeight);
+	// 	require(block.number > initHeight + period1 + period2 && block.number <= initHeight + period_all);
+	// 	require(tickets.length <= 5);
+	// 	// todo:
+	// 	// require(merkleProofValidate(proofs, tickets[0], merkleRoot[1]);  // verify existence of ticket
+	// 	// require(merkleProofValidate(proofs, tickets[1], merkleRoot[1]);  // can one loop in 'require'?
+	// 	// require(merkleProofValidate(proofs, tickets[2], merkleRoot[1]);  // or deal with array in the function
+	// 	// require(merkleProofValidate(proofs, tickets[3], merkleRoot[1]);
+	// 	// require(merkleProofValidate(proofs, tickets[4], merkleRoot[1]);
 
-		bytes32 memory _board = keccak256(board, blockhash(block.number - 1)));
+	// 	bytes32 memory _board = keccak256(board, blockhash(block.number - 1)));
 
-                for (i=0; i<tickets.length; i++) {
-                        _ticket = tickets[i];
-                        if (_board[30] == _ticket[30] && _board[31] == _ticket[31]) {
-                                battleHistory[initHeight][msg.sender].battle = 0;
-                                sampleGroup[2] = _board;
-                                // require(RNTInterface(RNTAddr).mint(msg.sender) == true);
-                                return true;
-                        } else {
-                                revert();
-                        }
-                }
-	}
+                // for (i=0; i<tickets.length; i++) {
+                        // _ticket = tickets[i];
+                        // if (_board[30] == _ticket[30] && _board[31] == _ticket[31]) {
+                                // battleHistory[initHeight][msg.sender].battle = 0;
+                                // sampleGroup[2] = _board;
+                                // // require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+                                // return true;
+                        // } else {
+                                // revert();
+                        // }
+                // }
+	// }
 
-        function MerkleTreeValidator(bytes32[] memory proof, bool[] memory isLeft, bytes32 targetLeaf, bytes32 merkleRoot) public view returns (bool) {
-                require(proof.length < 16);  // 16 is an arbitrary number, 2**16=65536 shoud be large enough
-                require(proof.length == isLeft.length);
-                MerkleTreeValidatorInterface(MerkleTreeAddr).validate(proof, isLeft, targetLeaf, merkleRoot);
-                return true;
-        }
+        // function MerkleTreeValidator(bytes32[] memory proof, bool[] memory isLeft, bytes32 targetLeaf, bytes32 merkleRoot) public view returns (bool) {
+                // require(proof.length < 16);  // 16 is an arbitrary number, 2**16=65536 shoud be large enough
+                // require(proof.length == isLeft.length);
+                // MerkleTreeValidatorInterface(MerkleTreeAddr).validate(proof, isLeft, targetLeaf, merkleRoot);
+                // return true;
+        // }
 
-	function submitMerkleRoot(bytes32 _merkleRoot, uint i) external view ValidatorOnly returns (bool) {
-	        require(i==0 or i==1);
-	        merkleRoot[i] = _merkleRoot;
-	        return true;
-        }
+	// function submitMerkleRoot(bytes32 _merkleRoot, uint i) external view ValidatorOnly returns (bool) {
+	//         require(i==0 || i==1);
+	//         merkleRoot[i] = _merkleRoot;
+	//         return true;
+        // }
+
 	// fallback
   	function () defenderOnly gameStalled external { 
   	    winner = defender; 

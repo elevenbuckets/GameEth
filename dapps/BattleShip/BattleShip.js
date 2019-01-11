@@ -4,10 +4,39 @@ const fs   = require('fs');
 const path = require('path');
 const ethUtils = require('ethereumjs-utils');
 const biapi = require('bladeiron_api');
-const MerkleTree = require('./merkle.js');
+const MerkleTree = require('merkle_tree');
+const level = require('level');
 
 // 11BE BladeIron Client API
 const BladeIronClient = require('bladeiron_api');
+
+const fields = 
+[
+   {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
+   {name: 'validatorAddress', length: 20, allowZero: false, default: new Buffer([]) },
+   {name: 'originAddress', length: 20, allowZero: false, default: new Buffer([]) },
+   {name: 'timestamp', length: 32, allowLess: true, default: new Buffer([]) },
+   {name: 'payload', length: 32, allowLess: false, default: new Buffer([]) },
+   {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
+   {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
+   {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
+];
+
+const pubKeyToAddress = (sigObj) =>
+{
+        let signer = '0x' +
+              ethUtils.bufferToHex(
+                ethUtils.sha3(
+                  ethUtils.bufferToHex(
+                        ethUtils.ecrecover(sigObj.chkhash, sigObj.v, sigObj.r, sigObj.s, sigObj.netID)
+                  )
+                )
+              ).slice(26);
+
+        console.log(`signer address: ${signer}`);
+
+        return signer === ethUtils.bufferToHex(sigObj.originAddress);
+}
 
 class BattleShip extends BladeIronClient {
 	constructor(rpcport, rpchost, options)
@@ -24,6 +53,8 @@ class BattleShip extends BladeIronClient {
 		this.bestANS = null;
 		this.gameANS = {};
                 this.gamePeriod = 11;  // defined in the smart contract
+		this.db = level(this.configs.database);
+                this.leaves = [];
 
 		this.probe = () => 
 		{
@@ -233,26 +264,107 @@ class BattleShip extends BladeIronClient {
                         for (var i = 0; i<sizeOfSecrets; i++) { this.secretBank.push(String(Math.random())); }
                 }
 
+		this.handleValidate = (msgObj) => 
+		{
+			let rlpx = Buffer.from(msgObj.data);
+			let data = {};
+
+			// access levelDB searching for nonce of address 
+			const __checkNonce = (address) => (resolve, reject) => 
+			{
+				let localMax = 0;
+	
+				db.createReadStream({gte: address})
+				    .on('data', function (data) {
+				       //if (data.value.nonce >= 2) { console.dir(data.value); }
+				       if(data.key.substr(0, 42) === address) {
+						let _nonce = Number(data.key.substr(43));
+						if(_nonce > localMax) localMax = _nonce;
+				       }
+	   			    })
+	   			    .on('error', (err) => {
+	       				console.trace(err);
+					reject(localMax);
+	   			    })
+				    .on('close', () => {
+	   				console.log('Stream closed')
+					resolve(localMax);
+	 			    })
+	 			    .on('end', () => {
+	   				console.log('Stream ended')
+					resolve(localMax);
+	 			    })
+			}
+
+			try {
+				ethUtils.defineProperties(data, fields, rlpx); // decode
+			} catch(err) {
+				console.trace(err);
+				return; // TODO: may add source filter to prevent spam
+			}
+
+			if ( !(v in data) || !(r in data) || !(s in data) ) return;
+
+			let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
+
+			// signature is signed against packed data fields
+			let rawout = this.abi.encodePacked(
+				[
+                                 		'uint',
+                                 		'address',
+                                 		'address',
+                                 		'uint',
+                                 		'bytes32'
+				],
+				[
+					ethUtils.bufferToInt(data.nonce),
+					ethUtils.bufferToHex(data.validatorAddress),
+					ethUtils.bufferToHex(data.originAddress),
+					ethUtils.bufferToInt(data.timestamp),
+					ethUtils.bufferToHex(data.payload)
+				]
+			);
+
+			let chkhash = ethUtils.hashPersonalMessage(Buffer.from(rawout)); // Buffer
+			sigout = { ...sigout, chkhash, netID: this.configs.networkID };
+			
+			// verify signature before checking nonce of the signed address
+			if (pubkeyToAddress(sigout)) {
+				let stage = new Promise(__checkNonce(ethUtils.bufferToHex(data.originAddress)));
+
+				stage.catch((n) => { return n });
+				stage = stage.then((nonce) => {
+					return this.call('playerInfo')(address).then((results) => {
+						let maxNonce = Number(results[5]); // max possbile nonce by root-chain purchase records
+
+						if (nonce <= maxNonce) {
+							this.leaves.push(data.payload);
+							// store file on local pool for IPFS publish
+						} else {
+							console.log(`DEBUG: player ${address} reached max tx allowance nonce: ${nonce}, max: ${maxNonce}.`)
+							return; // discard
+						}
+			    		})
+			    	})
+				.catch((err) => { console.trace(err); return; });
+			}
+		}
+
                 // below are several functions for state channel, the 'v_' ones are for validator
-                this.leaves = [];
-                this.subscribeChannel = () =>
+                this.subscribeChannel = (role) =>
                 {
                         this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
 
 			// validator handler
-                        this.ipfs_pubsub_subscribe(this.channelName)((msg) => {
-				// verify incomming data:
-				// decodable?
-				// all necessary fields?
-				// signature?
-				// valid nonce? 
-				// active membership?
-				//
-				// ALL need to pass before adding leaf
-                                this.leaves.push(msg.payload);
-                        });
+			let handler;
+			if (role === 'validator') {
+				handler = this.handleValidate
+			} else if (role === 'player') {
+				// regular user *only* need to monitor for stop block submission message
+				handler = this.handleState
+			}
 
-			// regular user *only* need to monitor for stop block submission message
+                        return this.ipfs_pubsub_subscribe(this.channelName)(handler);
                 };
 
                 this.unsubscribeChannel = () =>
@@ -264,17 +376,6 @@ class BattleShip extends BladeIronClient {
 
                 this.submitChannel = (hashedScore) =>
                 {
-                        const fields = 
-                        [
-                           {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
-                           {name: 'validatorAddress', length: 20, allowZero: true, default: new Buffer([]) },
-                           {name: 'originAddress', length: 20, allowZero: true, default: new Buffer([]) },
-                           {name: 'timestamp', length: 32, allowLess: true, default: new Buffer([]) },
-                           {name: 'payload', length: 32, allowLess: false, default: new Buffer([]) },
-   			   {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
-   			   {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
-   			   {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
-                        ];
 
                         let params = 
                         {
@@ -301,7 +402,7 @@ class BattleShip extends BladeIronClient {
 
                 this.v_announce = () => 
                 {
-                        this.ipfs_pubsub_publish(this.channelName, Buffer.from('Stop submiting scores') ).then(()={
+                        this.ipfs_pubsub_publish(this.channelName, Buffer.from('Stop submiting scores') ).then(() => {
                                 this.v_uploadMerkleTree(this.leaves);
                         }); 
                         // Perhaps user sign-in should be entirely off-chain, i.e., no playerDB in contract. 
@@ -330,7 +431,7 @@ class BattleShip extends BladeIronClient {
                         let proofArr = merkleTree.getProof(txIdx, true);
                         let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});
                         let isLeft = proofArr[0];
-                        let targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
+                        targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
                         let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
                         return this.call('MerkleTreeValidator')('validate')(proof, isLeft, targetLeaf, merkleRoot).then((tf) => { return tf;});
                 };

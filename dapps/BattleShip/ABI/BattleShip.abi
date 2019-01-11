@@ -2,11 +2,11 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "RNTAddr",
+    "name": "period2",
     "outputs": [
       {
         "name": "",
-        "type": "address"
+        "type": "uint256"
       }
     ],
     "payable": false,
@@ -21,6 +21,48 @@
       {
         "name": "",
         "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "validator",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "period1",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "lastActivity",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
       }
     ],
     "payable": false,
@@ -86,7 +128,35 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "period_all",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "initHeight",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "period3",
     "outputs": [
       {
         "name": "",
@@ -140,28 +210,10 @@
     "type": "function"
   },
   {
-    "constant": true,
-    "inputs": [],
-    "name": "period",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "name": "_init",
         "type": "bytes32"
-      },
-      {
-        "name": "_RNTAddr",
-        "type": "address"
       }
     ],
     "payable": true,
@@ -204,7 +256,7 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "myInfo",
+    "name": "getPlayerInfo",
     "outputs": [
       {
         "name": "",
@@ -212,15 +264,7 @@
       },
       {
         "name": "",
-        "type": "uint8"
-      },
-      {
-        "name": "",
-        "type": "bytes32"
-      },
-      {
-        "name": "",
-        "type": "bytes32"
+        "type": "uint256"
       },
       {
         "name": "",
@@ -252,20 +296,7 @@
   },
   {
     "constant": false,
-    "inputs": [
-      {
-        "name": "v",
-        "type": "uint8"
-      },
-      {
-        "name": "r",
-        "type": "bytes32"
-      },
-      {
-        "name": "s",
-        "type": "bytes32"
-      }
-    ],
+    "inputs": [],
     "name": "challenge",
     "outputs": [
       {
@@ -306,20 +337,6 @@
   },
   {
     "constant": false,
-    "inputs": [],
-    "name": "reviveReward",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": false,
     "inputs": [
       {
         "name": "secret",
@@ -336,6 +353,18 @@
       {
         "name": "blockNo",
         "type": "uint256"
+      },
+      {
+        "name": "v",
+        "type": "uint8"
+      },
+      {
+        "name": "r",
+        "type": "bytes32"
+      },
+      {
+        "name": "s",
+        "type": "bytes32"
       }
     ],
     "name": "revealSecret",

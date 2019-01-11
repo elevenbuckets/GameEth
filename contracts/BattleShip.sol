@@ -166,7 +166,7 @@ contract BattleShip {
 	}
 
 	// Join game
-	function challenge(uint8 v, bytes32 r, bytes32 s) public payable feePaid notDefender gameStarted returns (bool) {
+	function challenge() public payable feePaid notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].since < initHeight);
 		require(block.number < initHeight + period1 && block.number > initHeight);
 		require(playercount + 1 <= maxPlayer);

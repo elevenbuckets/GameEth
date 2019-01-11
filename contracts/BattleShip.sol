@@ -166,7 +166,7 @@ contract BattleShip {
 	}
 
 	// Join game
-	function challenge() public payable feePaid notDefender gameStarted returns (bool) {
+	function challenge(uint8 v, bytes32 r, bytes32 s) public payable feePaid notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].since < initHeight);
 		require(block.number < initHeight + period1 && block.number > initHeight);
 		require(playercount + 1 <= maxPlayer);
@@ -229,7 +229,7 @@ contract BattleShip {
 		require(blockNo <= block.number - 1 && blockNo < initHeight + period1 && blockNo > initHeight);
 		// require(merkleRoot[0] != 0x0);
 		// todo: require(merkleProofValidate(proofs, keccak256(score), merkleRoot[0]);
-		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(score))), v, r, s) == msg.sender);
+		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
 
 		battleStat memory newbat;
 		newbat.battle = initHeight;

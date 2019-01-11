@@ -51,6 +51,7 @@ contract BattleShip {
 	uint public playercount = 0;
 	bytes32[4] private samGroup;
 	bytes32 private lastRevived;
+	bytes32 public merkleRoot; // leaves of 1st tree: hash(score), 2nd: tickets. submitted by validator
 	// bytes32[2] public merkleRoot; // leaves of 1st tree: hash(score), 2nd: tickets. submitted by validator
         // address constant public MerkleTreeAddr = 0x127bfc8AFfdCaeee6043e7eC79239542e5A470B7;
 
@@ -298,11 +299,11 @@ contract BattleShip {
                 // return true;
         // }
 
-	// function submitMerkleRoot(bytes32 _merkleRoot, uint i) external view ValidatorOnly returns (bool) {
-	//         require(i==0 || i==1);
-	//         merkleRoot[i] = _merkleRoot;
-	//         return true;
-        // }
+	function submitMerkleRoot(bytes32 _merkleRoot) external ValidatorOnly returns (bool) {
+		require(block.number >= initHeight + period1 + period2 && block.number < initHeight + period1 + period2 + 3);
+	        merkleRoot = _merkleRoot;
+	        return true;
+        }
 
 	// fallback
   	function () defenderOnly gameStalled external { 

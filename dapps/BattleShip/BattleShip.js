@@ -52,31 +52,29 @@ class BattleShip extends BladeIronClient {
 		this.blockBest = {};
 		this.bestANS = null;
 		this.gameANS = {};
-                this.gamePeriod = 11;  // defined in the smart contract
+                this.gamePeriod;
 		this.db = level(this.configs.database);
                 this.leaves = [];
 
 		this.probe = () => 
 		{
-			return this.call(this.ctrName)('setup')()
-			    .then((rc) => 
-			    { 
-				this.gameStarted = rc; console.log(`The game started = ${rc}`);
-				return this.call(this.ctrName)('board')()
-			    })
-			    .then((rc) => 
-			    { 
-			    	this.board = rc; console.log(`The Board: ${rc}`); 
+			let p = ['setup', 'board', 'initHeight', 'period', 'validator'].map((i) => { return this.call(this.ctrName)(i)() });
+
+			return Promise.all(p).then((plist) => {
+				console.dir(plist);
+				this.gameStarted = plist[0];
+
 				if (this.gameStarted) {
-					return this.call(this.ctrName)('initHeight')().then((rc) => { 
-						this.initHeight = Number(rc); console.log(`Init Block Height = ${rc}`); 
-						if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
-					})
-					.then(() => { return this.gameStarted; });
-				} else {
-					return this.gameStarted;
+					this.board = plist[1];
+					this.initHeight = plist[2];
+					this.gamePeriod = plist[3];
+					this.validator = plist[4];
+
+					if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
 				}
-			    });
+
+				return this.gameStarted;
+			});
 		}	
 
 		this.testOutcome = (raw, blockNo) => 
@@ -334,8 +332,8 @@ class BattleShip extends BladeIronClient {
 
 				stage.catch((n) => { return n });
 				stage = stage.then((nonce) => {
-					return this.call('playerInfo')(address).then((results) => {
-						let maxNonce = Number(results[5]); // max possbile nonce by root-chain purchase records
+					return this.call(this.ctrName)('getPlayerInfo')(address).then((results) => {
+						let maxNonce = Number(results[2]); // max possbile nonce by root-chain purchase records
 
 						if (nonce <= maxNonce) {
 							this.leaves.push(data.payload);
@@ -380,10 +378,9 @@ class BattleShip extends BladeIronClient {
                         let params = 
                         {
                                 nonce: 0,
-                                type: 0,
+                                validatorAddress: this.validator,
                                 originAddress: this.address,
-                                validatorAddress: '0x0',
-                                timestamp: 0,
+                                timestamp: Math.floor(Date.now() / 1000),
                                 payload: hashedScore  // or ticketNumber (or hash(ticketNumber))
                         };
                         let data = biapi.abi.encodeParameters(

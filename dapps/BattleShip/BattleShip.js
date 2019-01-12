@@ -58,7 +58,7 @@ class BattleShip extends BladeIronClient {
 
 		this.probe = () => 
 		{
-			let p = ['setup', 'board', 'initHeight', 'period', 'validator'].map((i) => { return this.call(this.ctrName)(i)() });
+			let p = ['setup', 'board', 'initHeight', 'period_all', 'validator'].map((i) => { return this.call(this.ctrName)(i)() });
 
 			return Promise.all(p).then((plist) => {
 				console.dir(plist);
@@ -69,6 +69,7 @@ class BattleShip extends BladeIronClient {
 					this.initHeight = plist[2];
 					this.gamePeriod = plist[3];
 					this.validator = plist[4];
+                        		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
 
 					if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
 				}
@@ -83,34 +84,29 @@ class BattleShip extends BladeIronClient {
 			return this.call(this.ctrName)('testOutcome')(secret, blockNo).then((r) => { return [...r, secret]});
 		} 
 
-		this.register = (secret) => 
+		this.register = () => 
 		{
-			let msgSHA256Buffer = Buffer.from(secret.slice(2), 'hex');
-			let gameANS = {};
-			return this.client.call('unlockAndSign', [this.address, msgSHA256Buffer])
-				.then((data) => {
-					let fee = '10000000000000000';
-					let v = data.v;
-					let r = ethUtils.bufferToHex(Buffer.from(data.r));
-					let s = ethUtils.bufferToHex(Buffer.from(data.s));
-					gameANS = {secret, v,r,s};
-					return this.sendTk(this.ctrName)('challenge')(v,r,s)(fee);
-				})
-				.then((qid) => {
-					console.log(`DEBUG: QID = ${qid}`);
-					return this.getReceipts(qid).then((rc) => {
-						let rx = rc[0];
+			//let msgSHA256Buffer = Buffer.from(secret.slice(2), 'hex');
+			let fee = '10000000000000000';
+			return this.client.call('ethNetStatus').then((rc) => {
+				if (rc.blockHeight <= this.initHeight + 7) {
+					return this.sendTk(this.ctrName)('challenge')()(fee);
+						   .then((qid) => {
+							console.log(`DEBUG: QID = ${qid}`);
+							return this.getReceipts(qid).then((rc) => {
+								let rx = rc[0];
+		
+								if (rx.status !== '0x1') throw "failed to join the round";
+								
+								return rx;
+							});
+						})
+						.catch((err) => { console.log(err); throw err; })
+				}
+			})
 
-						if (rx.status === '0x1') {
-							gameANS['submitted'] = rx.blockNumber;
-							this.gameANS[this.initHeight] = gameANS; console.dir(this.gameANS);
-						}
-						return rx;
-					});
-				})
-				.catch((err) => { console.log(err); throw err; })
 		}
-
+/*
 		this.winnerTakes = (stats) => 
 		{
 			if (stats.blockHeight <= this.initHeight + this.gamePeriod) return;
@@ -158,13 +154,23 @@ class BattleShip extends BladeIronClient {
 					})
 				})
 		}
+*/
+
+		this.checkMerkle = (stats) => {
+			return this.call(this.ctrName)('merkleRoot')().then((mr) => {
+				// submit another tx to reveal secret
+				// stopTrial and start watching for the end block of the game
+			})
+		}
 	
 		this.trial = (stats) => 
 		{
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 5) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
-			if (stats.blockHeight >= this.initHeight + 6 || (typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) ) {
+			if ( stats.blockHeight == this.initHeight + 8 
+			  || ( stats.blockHeight >= this.initHeight + 6 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) ) 
+			{
 				this.stopTrial();
 
 				if (Object.values(this.blockBest).length > 0) {
@@ -178,11 +184,11 @@ class BattleShip extends BladeIronClient {
 					})
 
 					console.log(`Best Answer:`); console.dir(this.bestANS);			
-					return this.register(this.bestANS.secret)
-						   .then((rc) => {
-							console.dir(rc); 
+					return this.submitChannel(ethUtils.keccak256(this.bestANS.score))
+						   .then((rlpx) => {
 							this.client.subscribe('ethstats');
-							this.client.on('ethstats', this.submitAnswer);
+							this.client.on('ethstats', this.checkMerkle);
+							return this.ipfs_pubsub_publish(this.channelName, rlpx);
 						   });
 				} else {
 					return;
@@ -238,7 +244,7 @@ class BattleShip extends BladeIronClient {
 			console.log('Trial stopped !!!');
 		}
 
-		this.startTrial = (tryMore = 0) => 
+		this.startTrial = (tryMore = 1000) => 
 		{
                         if (tryMore > 0) { 
 				if (tryMore > 2000) tryMore = 2000;
@@ -248,9 +254,13 @@ class BattleShip extends BladeIronClient {
 			this.probe().then((started) => 
 			{
 				if(started) {
-					this.client.subscribe('ethstats');
-					this.client.on('ethstats', this.trial);
 					console.log('Game started !!!');
+					this.register().then((tx) => 
+					{ 	
+						console.dir(tx); 
+						this.client.subscribe('ethstats');
+						this.client.on('ethstats', this.trial);
+					})
 				} else {
 					console.log('Game has not yet been set ...');
 				}
@@ -351,8 +361,6 @@ class BattleShip extends BladeIronClient {
                 // below are several functions for state channel, the 'v_' ones are for validator
                 this.subscribeChannel = (role) =>
                 {
-                        this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
-
 			// validator handler
 			let handler;
 			if (role === 'validator') {
@@ -374,7 +382,6 @@ class BattleShip extends BladeIronClient {
 
                 this.submitChannel = (hashedScore) =>
                 {
-
                         let params = 
                         {
                                 nonce: 0,

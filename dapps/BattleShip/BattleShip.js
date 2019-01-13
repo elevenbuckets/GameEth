@@ -15,7 +15,8 @@ const fields =
 //   {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
 //   {name: 'validatorAddress', length: 20, allowZero: false, default: new Buffer([]) },
    {name: 'originAddress', length: 20, allowZero: false, default: new Buffer([]) },
-//   {name: 'timestamp', length: 32, allowLess: true, default: new Buffer([]) },
+   {name: 'submitBlock', length: 32, allowLess: true, default: new Buffer([]) },
+   {name: 'ticket', length: 32, allowLess: false, default: new Buffer([]) },
    {name: 'payload', length: 32, allowLess: false, default: new Buffer([]) },
    {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
    {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
@@ -194,7 +195,12 @@ class BattleShip extends BladeIronClient {
 							this.client.call('unlockAndSign', [this.userWallet, tickethash]).then((signature) => 
 							{
 								let m = {};
-								let params = { originAddress: this.userWallet, payload: ethUtils.bufferToHex(tickethash) };
+								let params = { 
+									originAddress: this.userWallet, 
+									submitBlock: stats.blockHeight,
+									ticket,
+									payload: ethUtils.bufferToHex(tickethash) 
+								};
                         					ethUtils.defineProperties(m, fields, {...params, ...signature});
 								this.ipfs_pubsub_publish(this.channelName, m.serialize());
 							})
@@ -346,6 +352,9 @@ class BattleShip extends BladeIronClient {
 				let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
 	
 				// signature is signed against payload
+				// FIXME: what about submitBlock??????
+				// FIXME: STILL needs to check winningNumber() against ticket
+				// ... so, ticket from address still should be part of the tx!!!
 				let chkhash = Buffer.from(data.payload.slice(2), 'hex'); // Buffer
 				sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
 				
@@ -356,8 +365,6 @@ class BattleShip extends BladeIronClient {
 				}
 	    		})
 			.catch((err) => { console.trace(err); return; });
-
-
 		}
 
                 // below are several functions for state channel, the 'v_' ones are for validator

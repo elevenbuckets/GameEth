@@ -345,20 +345,9 @@ class BattleShip extends BladeIronClient {
 	
 				let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
 	
-				// signature is signed against packed data fields
-				let rawout = this.abi.encodeParameters(
-					[
-	                                 	'address',
-	                                 	'bytes32'
-					],
-					[
-						ethUtils.bufferToHex(data.originAddress),
-						ethUtils.bufferToHex(data.payload)
-					]
-				);
-	
-				let chkhash = ethUtils.hashPersonalMessage(Buffer.from(rawout)); // Buffer
-				sigout = { ...sigout, chkhash, netID: this.configs.networkID };
+				// signature is signed against payload
+				let chkhash = Buffer.from(data.payload.slice(2), 'hex'); // Buffer
+				sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
 				
 				// verify signature before checking nonce of the signed address
 				if (pubkeyToAddress(sigout)) {

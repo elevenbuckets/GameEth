@@ -30,6 +30,20 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "merkleRoot",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "validator",
     "outputs": [
       {
@@ -368,6 +382,25 @@
       }
     ],
     "name": "revealSecret",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_merkleRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "submitMerkleRoot",
     "outputs": [
       {
         "name": "",

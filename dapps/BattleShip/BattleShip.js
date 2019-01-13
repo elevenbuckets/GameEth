@@ -12,10 +12,10 @@ const BladeIronClient = require('bladeiron_api');
 
 const fields = 
 [
-   {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
-   {name: 'validatorAddress', length: 20, allowZero: false, default: new Buffer([]) },
+//   {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
+//   {name: 'validatorAddress', length: 20, allowZero: false, default: new Buffer([]) },
    {name: 'originAddress', length: 20, allowZero: false, default: new Buffer([]) },
-   {name: 'timestamp', length: 32, allowLess: true, default: new Buffer([]) },
+//   {name: 'timestamp', length: 32, allowLess: true, default: new Buffer([]) },
    {name: 'payload', length: 32, allowLess: false, default: new Buffer([]) },
    {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
    {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
@@ -55,6 +55,7 @@ class BattleShip extends BladeIronClient {
                 this.gamePeriod;
 		this.db = level(this.configs.database);
                 this.leaves = [];
+		this.winRecords = {};
 
 		this.probe = () => 
 		{
@@ -72,10 +73,15 @@ class BattleShip extends BladeIronClient {
                         		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
 
 					if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
+					if (
+					     this.userWallet === this.validator 
+					  && typeof(this.winRecords[this.initHeight]) === 'undefined'
+					) { this.winRecords[this.initHeight] = {}; }
 				}
 
 				return this.gameStarted;
-			});
+			})
+			.catch((err) => { console.trace(err);})
 		}	
 
 		this.testOutcome = (raw, blockNo) => 
@@ -84,19 +90,21 @@ class BattleShip extends BladeIronClient {
 			return this.call(this.ctrName)('testOutcome')(secret, blockNo).then((r) => { return [...r, secret]});
 		} 
 
-		this.register = () => 
+		this.register = (scorehash) => 
 		{
 			//let msgSHA256Buffer = Buffer.from(secret.slice(2), 'hex');
 			let fee = '10000000000000000';
 			return this.client.call('ethNetStatus').then((rc) => {
 				if (rc.blockHeight <= this.initHeight + 7) {
-					return this.sendTk(this.ctrName)('challenge')()(fee);
+					return this.sendTk(this.ctrName)('challenge')(scorehash)(fee)
 						   .then((qid) => {
 							console.log(`DEBUG: QID = ${qid}`);
 							return this.getReceipts(qid).then((rc) => {
 								let rx = rc[0];
 		
 								if (rx.status !== '0x1') throw "failed to join the round";
+								this.bestANS['submitted'] = rx.blockNumber;
+								this.gameANS[this.initHeight] = { ...this.bestANS, tickets: {} };
 								
 								return rx;
 							});
@@ -106,60 +114,93 @@ class BattleShip extends BladeIronClient {
 			})
 
 		}
-/*
-		this.winnerTakes = (stats) => 
-		{
-			if (stats.blockHeight <= this.initHeight + this.gamePeriod) return;
-			this.stopTrial();
 
-			return this.call(this.ctrName)('winner')().then((winner) => {
-				if (winner === this.address) {
-					return this.sendTk(this.ctrName)('withdraw')()()
-						   .then((qid) => {
-							this.gameStarted = false; 
-							return this.getReceipts(qid).then((rc) => {
-								console.dir(rc[0]);
-						   	})
-						   });
-				} else {
-					console.log(`Yeah Right...`);
-					this.gameStarted = false; 
-					return;
+		this.checkMerkle = (stats) => 
+		{
+			return this.call(this.ctrName)('merkleRoot')().then((mr) => {
+				if (mr !== '0x0') {
+					// double check all submitted winning tickets are included
+					// preparing data structure to call withdraw, if any
 				}
 			})
 		}
 
-		this.submitAnswer = (stats) => 
+		this.calcTicket = () => 
 		{
-			if (this.gameANS[this.initHeight].secret !== this.bestANS.secret) {
-				console.log("secret altered after registration... Abort!");
-				return this.stopTrial();
-			} else if (stats.blockHeight < Number(this.gameANS[this.initHeight].submitted) + 5) {
-				console.log(`Still waiting block number >= ${Number(this.gameANS[this.initHeight].submitted) + 5} ...`);
-				return;
-			} else if (stats.blockHeight > this.initHeight + this.gamePeriod) {
-				console.log(`Game round ${this.initHeight} is now ended`);
-				this.gameStarted = false;
-				return this.stopTrial();
+			if ( stats.blockHeight <= this.initHeight + 8 ) {
+				return Promise.resolve(false);
+			} else if (
+			 	stats.blockHeight > this.initHeight + 8 
+			     && Object.keys(this.gameANS[this.initHeight].tickets).length != 0
+			){
+				return Promise.resolve(true);
+			} else {
+				return this.call(this.ctrName)('getBlockhash')(Number(this.initHeight) + 8).then( (blockhash) => {
+					// check how many tickets earned
+					let initials = this.toBigNumber(this.toHex(this.gameANS[this.initHeight].score.substr(2,7)));
+					let total = 1;
+		
+					if (initials.eq(0)) total = 5;
+					if (initials.lt(16)) total = 4;
+					if (initials.lt(256)) total = 3;
+					if (initials.lt(4096)) total = 2;
+		
+					for (let i = 1; i <= total; i++) {
+						let packed = this.abi.encodeParameters(
+						[
+							'bytes32',
+							'bytes32',
+							'uint'
+						],
+						[
+							this.gameANS[this.initHeight].score,
+							blockhash,
+							Number(i)
+						])
+		
+						// calculating tickets
+						this.gameANS[this.initHeight].tickets[i] = ethUtils.bufferToHex(ethUtils.keccak256(packed));
+					}
+					
+					return true;
+				})
 			}
+		}
 
-			this.stopTrial();
+		this.newDraws = (stats) => 
+		{
+			this.calcTickets().then((rc) => {
+				if (!rc) return false;
+				this.call(this.ctrName)('winningNumber')(stats.blockHeight).then((raffle) => {
+					Object.values(this.gameANS[this.initHeight].tickets).map((ticket) => {
+						if (raffle.substr(64) === ticket.substr(64)) {
+							let data = this.abi.encodeParameters(
+							[
+								'bytes32',
+								'string',
+								'uint',
+								'uint',
+								'bytes32
+							],
+							[
+								this.bestANS.secret,
+								this.bestANS.slots.map((s) => { return s ? 1 : 0 }).join(''),
+								this.bestANS.blockNo,
+								stats.blockHeight,
+								ticket
+							])
 
-			return this.sendTk(this.ctrName)('revealSecret')(this.gameANS[this.initHeight].secret, this.bestANS.score, this.bestANS.slots, this.bestANS.blockNo)()
-				.then((qid) => {
-					return this.getReceipts(qid).then((rc) => {
-						console.dir(rc[0]);
-						this.client.subscribe('ethstats');
-						this.client.on('ethstats', this.winnerTakes);
+							let tickethash = ethUtils.hashPersonalMessage(Buffer.from(data));
+							this.client.call('unlockAndSign', [this.userWallet, tickethash]).then((signature) => 
+							{
+								let m = {};
+								let params = { originAddress: this.userWallet, payload: ethUtils.bufferToHex(tickethash) };
+                        					ethUtils.defineProperties(m, fields, {...params, ...signature});
+								this.ipfs_pubsub_publish(this.channelName, m.serialize());
+							})
+						}
 					})
 				})
-		}
-*/
-
-		this.checkMerkle = (stats) => {
-			return this.call(this.ctrName)('merkleRoot')().then((mr) => {
-				// submit another tx to reveal secret
-				// stopTrial and start watching for the end block of the game
 			})
 		}
 	
@@ -169,8 +210,8 @@ class BattleShip extends BladeIronClient {
 			if (stats.blockHeight < this.initHeight + 5) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
 			if ( stats.blockHeight == this.initHeight + 8 
-			  || ( stats.blockHeight >= this.initHeight + 6 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) ) 
-			{
+			  || ( stats.blockHeight >= this.initHeight + 6 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) 
+			){
 				this.stopTrial();
 
 				if (Object.values(this.blockBest).length > 0) {
@@ -183,13 +224,18 @@ class BattleShip extends BladeIronClient {
 						}
 					})
 
-					console.log(`Best Answer:`); console.dir(this.bestANS);			
-					return this.submitChannel(ethUtils.keccak256(this.bestANS.score))
-						   .then((rlpx) => {
-							this.client.subscribe('ethstats');
-							this.client.on('ethstats', this.checkMerkle);
-							return this.ipfs_pubsub_publish(this.channelName, rlpx);
-						   });
+					console.log(`Best Answer:`); console.dir(this.bestANS);
+					let scorehash = ethUtils.bufferToHex(ethUtils.keccak256(this.bestANS.score));
+
+					return this.register(scorehash)
+						   .then((tx) => 
+						   {
+							console.dir(tx);
+							if (tx.status === '0x1') {
+								this.client.subscribe('ethstats');
+								this.client.on('ethstats', this.newDraws);
+							}
+						   })
 				} else {
 					return;
 				}
@@ -255,12 +301,8 @@ class BattleShip extends BladeIronClient {
 			{
 				if(started) {
 					console.log('Game started !!!');
-					this.register().then((tx) => 
-					{ 	
-						console.dir(tx); 
-						this.client.subscribe('ethstats');
-						this.client.on('ethstats', this.trial);
-					})
+					this.client.subscribe('ethstats');
+					this.client.on('ethstats', this.trial);
 				} else {
 					console.log('Game has not yet been set ...');
 				}
@@ -274,88 +316,59 @@ class BattleShip extends BladeIronClient {
 
 		this.handleValidate = (msgObj) => 
 		{
-			let rlpx = Buffer.from(msgObj.data);
+			let address;
 			let data = {};
-
-			// access levelDB searching for nonce of address 
-			const __checkNonce = (address) => (resolve, reject) => 
-			{
-				let localMax = 0;
-	
-				db.createReadStream({gte: address})
-				    .on('data', function (data) {
-				       //if (data.value.nonce >= 2) { console.dir(data.value); }
-				       if(data.key.substr(0, 42) === address) {
-						let _nonce = Number(data.key.substr(43));
-						if(_nonce > localMax) localMax = _nonce;
-				       }
-	   			    })
-	   			    .on('error', (err) => {
-	       				console.trace(err);
-					reject(localMax);
-	   			    })
-				    .on('close', () => {
-	   				console.log('Stream closed')
-					resolve(localMax);
-	 			    })
-	 			    .on('end', () => {
-	   				console.log('Stream ended')
-					resolve(localMax);
-	 			    })
-			}
+			let rlpx = Buffer.from(msgObj.data);
 
 			try {
 				ethUtils.defineProperties(data, fields, rlpx); // decode
+				address = ethUtils.bufferToHex(data.originAddress);
+				if ( this.winRecords[address] > 10) {
+					throw `address ${address} exceeds round limit ... ignored`;
+				}
 			} catch(err) {
 				console.trace(err);
-				return; // TODO: may add source filter to prevent spam
+				return;
 			}
 
-			if ( !(v in data) || !(r in data) || !(s in data) ) return;
+			return this.call(this.ctrName)('getPlayerInfo')(address).then((results) => 
+			{
+				let since = results[0];
+				let scoreHash = results[2]; // max possbile nonce by root-chain purchase records
 
-			let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
+				if (scoreHash === '0x0' || since < this.initHeight) {
+					console.log(`DEBUG: Address ${address} did not play`)
+					return; // discard
+				}
+	
+				if ( !(v in data) || !(r in data) || !(s in data) ) return;
+	
+				let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
+	
+				// signature is signed against packed data fields
+				let rawout = this.abi.encodeParameters(
+					[
+	                                 	'address',
+	                                 	'bytes32'
+					],
+					[
+						ethUtils.bufferToHex(data.originAddress),
+						ethUtils.bufferToHex(data.payload)
+					]
+				);
+	
+				let chkhash = ethUtils.hashPersonalMessage(Buffer.from(rawout)); // Buffer
+				sigout = { ...sigout, chkhash, netID: this.configs.networkID };
+				
+				// verify signature before checking nonce of the signed address
+				if (pubkeyToAddress(sigout)) {
+					this.leaves.push(data.payload);
+					// store file on local pool for IPFS publish
+				}
+	    		})
+			.catch((err) => { console.trace(err); return; });
 
-			// signature is signed against packed data fields
-			let rawout = this.abi.encodePacked(
-				[
-                                 		'uint',
-                                 		'address',
-                                 		'address',
-                                 		'uint',
-                                 		'bytes32'
-				],
-				[
-					ethUtils.bufferToInt(data.nonce),
-					ethUtils.bufferToHex(data.validatorAddress),
-					ethUtils.bufferToHex(data.originAddress),
-					ethUtils.bufferToInt(data.timestamp),
-					ethUtils.bufferToHex(data.payload)
-				]
-			);
 
-			let chkhash = ethUtils.hashPersonalMessage(Buffer.from(rawout)); // Buffer
-			sigout = { ...sigout, chkhash, netID: this.configs.networkID };
-			
-			// verify signature before checking nonce of the signed address
-			if (pubkeyToAddress(sigout)) {
-				let stage = new Promise(__checkNonce(ethUtils.bufferToHex(data.originAddress)));
-
-				stage.catch((n) => { return n });
-				stage = stage.then((nonce) => {
-					return this.call(this.ctrName)('getPlayerInfo')(address).then((results) => {
-						let maxNonce = Number(results[2]); // max possbile nonce by root-chain purchase records
-
-						if (nonce <= maxNonce) {
-							this.leaves.push(data.payload);
-							// store file on local pool for IPFS publish
-						} else {
-							console.log(`DEBUG: player ${address} reached max tx allowance nonce: ${nonce}, max: ${maxNonce}.`)
-							return; // discard
-						}
-			    		})
-			    	})
-				.catch((err) => { console.trace(err); return; });
-			}
 		}
 
                 // below are several functions for state channel, the 'v_' ones are for validator
@@ -380,30 +393,6 @@ class BattleShip extends BladeIronClient {
                         })
                 };
 
-                this.submitChannel = (hashedScore) =>
-                {
-                        let params = 
-                        {
-                                nonce: 0,
-                                validatorAddress: this.validator,
-                                originAddress: this.address,
-                                timestamp: Math.floor(Date.now() / 1000),
-                                payload: hashedScore  // or ticketNumber (or hash(ticketNumber))
-                        };
-                        let data = biapi.abi.encodeParameters(
-                            ['uint', 'address', 'address', 'uint', 'bytes32' ],
-                            [params.nonce, params.validatorAddress, params.originAddress, params.timestamp, params.payload]
-                        );
-                        let datahash = ethUtils.hashPersonalMessage(new Buffer(data));
-	                let mesh11 = {};
-
-			return this.client.call('unlockAndSign', [this.address, datahash]).then((signature) => {
-                        	ethUtils.defineProperties(mesh11, fields, [...params, ...signature]);
-                        	return mesh11.serialize();
-			})
-                };
-
-
                 this.v_announce = () => 
                 {
                         this.ipfs_pubsub_publish(this.channelName, Buffer.from('Stop submiting scores') ).then(() => {
@@ -415,7 +404,6 @@ class BattleShip extends BladeIronClient {
                         // 2. hard to make sure this annoucement and generation/submision of Merkle Tree
                         //    is on time
                 };
-
 
                 this.merkleTree = new MerkleTree();
                 this.v_makeMerkleTreeAndUploadRoot = (leaves) => {

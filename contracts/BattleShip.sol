@@ -3,7 +3,7 @@ pragma solidity ^0.4.24;
 // import "./ERC20.sol";
 import "./SafeMath.sol";
 // import "./RNTInterface.sol";
-// import "./MerkleTreeValidatorInterface.sol";
+import "./MerkleTreeValidatorInterface.sol";
 
 // About the game
 // # Roles
@@ -45,7 +45,7 @@ contract BattleShip {
 	bytes32[4] private samGroup;
 	bytes32 private lastRevived;
 	bytes32 public merkleRoot;
-        // address constant public MerkleTreeAddr = 0x127bfc8AFfdCaeee6043e7eC79239542e5A470B7;
+        address constant public MerkleTreeAddr = 0x127bfc8AFfdCaeee6043e7eC79239542e5A470B7;
 
 	struct playerInfo {
 		address wallet; // msg.sender
@@ -137,7 +137,7 @@ contract BattleShip {
 	// }
 
 	function getPlayerInfo() public view returns (uint, uint, bytes32) {
-		return (playerDB[msg.sender].since, initHeight, scoreHash);
+		return (playerDB[msg.sender].since, initHeight, playerDB[msg.sender].scoreHash);
 	}
 
 	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {
@@ -294,10 +294,10 @@ contract BattleShip {
 	        return keccak256(abi.encodePacked(board, blockhash(blockNo)));
         }
 
-        function MerkleTreeValidator(bytes32[] memory proof, bool[] memory isLeft, bytes32 targetLeaf, bytes32 merkleRoot) public view returns (bool) {
+        function MerkleTreeValidator(bytes32[] memory proof, bool[] memory isLeft, bytes32 targetLeaf, bytes32 _merkleRoot) public pure returns (bool) {
                 require(proof.length < 16);  // 16 is an arbitrary number, 2**16=65536 shoud be large enough
                 require(proof.length == isLeft.length);
-                return MerkleTreeValidatorInterface(MerkleTreeAddr).validate(proof, isLeft, targetLeaf, merkleRoot);
+                return MerkleTreeValidatorInterface(MerkleTreeAddr).validate(proof, isLeft, targetLeaf, _merkleRoot);
         }
 
 	function submitMerkleRoot(bytes32 _merkleRoot) external ValidatorOnly returns (bool) {

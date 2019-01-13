@@ -11,23 +11,16 @@ import "./SafeMath.sol";
 //  * player : join the game, max 1000 players, pay 0.01 eth and can win 150 RNT potentially
 //  * validator: provide merkle proof in block `n` (a tiny amount)
 //
-// # state channel (sc):
-//  * users send hashed-score (signed) before `n`
-//  * validator provide a merkle root, and put the root on-chain at block `n`
-//    - validator (or player) generate tickets, but players can only use the ticket if they `revealSecret()`
-//  * [?] another merkle tree based on tickets generated at block `m`
-//
 // # time line of a game:
-//    start ------------ n ------- m -------------------------------- end
-//          calc and reg   reveal    lottery, each round: 0-n winners
-//          submit to sc   secret    and random number
+//    start ------------ n ------- m -------------------------------- end -----
+//          calc           reg to    lottery, each round: 0-n winners     merkle on sc submit
+//                         sc        (only on sc)                         to chain; withdraw
 //          (period1)      (period2) (period3)
 //
+//  * sc: state channel
 //  * period_all = period1 + period2 + period3
-//  * during period2 (btw. `n` and `m`): generate tickets for players (verify on sc, also stored on sc?)
-//  * there is a winner of battleship game at block `m`, who can withdraw btw. the end and several blocks after end
-//  * probably, at block `n` and `m` players do nothing. Leave these as buffer for sc to do something
-//  * player obtain ticket in the form `ticket[i] = hash(score + bn[m-1] + i)` where 1<=i<=5, depend on score
+//  * during period2 (btw. `n` and `m`) players get tickets on sc
+//  * player obtain ticket in the form `ticket[i] = hash(score + bn[m-1] + i)` where 0<=i<5, depend on score
 // todo: add an upper limit for the contract to give to players? Such as (the order of) 1000*0.01 eth = 10 eth = 1e5 RNT
 
 contract BattleShip {
@@ -51,24 +44,24 @@ contract BattleShip {
 	uint public playercount = 0;
 	bytes32[4] private samGroup;
 	bytes32 private lastRevived;
-	bytes32 public merkleRoot; // leaves of 1st tree: hash(score), 2nd: tickets. submitted by validator
-	// bytes32[2] public merkleRoot; // leaves of 1st tree: hash(score), 2nd: tickets. submitted by validator
+	bytes32 public merkleRoot;
         // address constant public MerkleTreeAddr = 0x127bfc8AFfdCaeee6043e7eC79239542e5A470B7;
 
 	struct playerInfo {
 		address wallet; // msg.sender
 		uint since;     // block height when joined
-		uint maxNonce;
+		bytes32 scoreHash;
+		// uint maxNonce;
 	}
 
 	struct battleStat {
-		uint battle;
-		bytes32 secret;
-		bytes32 score;
+	        bytes32 merkleRoot;
+		bytes32 board;
 	}
 
 	mapping (address => playerInfo) playerDB;
-	mapping (uint => mapping (address => battleStat)) battleHistory;
+	// mapping (uint => mapping (address => battleStat)) battleHistory;
+	mapping (uint => battleStat) battleHistory;
 
 	// Modifiers
 	modifier defenderOnly() {
@@ -137,14 +130,14 @@ contract BattleShip {
 		return true;
 	}
 
-	function randomNumber() public view returns (bytes32) {
-		require(lastRevived != samGroup[3] && samGroup[3] != bytes32(0));
-		require(block.number - lastActivity <= 5);
-		return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], samGroup[3], blockhash(block.number - 1)));
-	}
+	// function randomNumber() public view returns (bytes32) {
+	// 	require(lastRevived != samGroup[3] && samGroup[3] != bytes32(0));
+	// 	require(block.number - lastActivity <= 5);
+	// 	return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], samGroup[3], blockhash(block.number - 1)));
+	// }
 
-	function getPlayerInfo() public view returns (uint, uint, uint) {
-		return (playerDB[msg.sender].since, initHeight, playerDB[msg.sender].maxNonce);
+	function getPlayerInfo() public view returns (uint, uint, bytes32) {
+		return (playerDB[msg.sender].since, initHeight, scoreHash);
 	}
 
 	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {
@@ -154,7 +147,7 @@ contract BattleShip {
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
 		board = defense;
-		newone.maxNonce = 100;
+		// newone.maxNonce = 100;
 
 		initHeight = block.number;
 		playerDB[msg.sender] = newone;
@@ -163,20 +156,23 @@ contract BattleShip {
 		lastRevived = bytes32(0);
 		samGroup[3] = bytes32(0);
 
+	        battleHistory[initHeight].board = board;
+
 		return true;
 	}
 
 	// Join game
-	function challenge() public payable feePaid notDefender gameStarted returns (bool) {
+	function challenge(bytes32 scoreHash) public payable feePaid notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].since < initHeight);
-		require(block.number < initHeight + period1 && block.number > initHeight);
+		require(block.number >= initHeight + period1 && block.number < initHeight + period1 + period2);
 		require(playercount + 1 <= maxPlayer);
 
 		playerInfo memory newone;
 
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
-		newone.maxNonce = 10;  // for test
+		// newone.maxNonce = 10;  // for test
+		newone.scoreHash = scoreHash;
 
 		playerDB[msg.sender] = newone;
 		playercount += 1;
@@ -202,14 +198,14 @@ contract BattleShip {
 
 	// function reviveReward() public gameStarted notDefender returns (bool) {
 	// 	require(battleHistory[initHeight][msg.sender].battle == initHeight);
-	// 	require(block.number > initHeight + 10);
+	// 	require(block.number > initHeight + period1 + period2);
 
 	// 	bytes32 _board = keccak256(abi.encodePacked(battleHistory[initHeight][msg.sender].score, blockhash(block.number - 1)));
 
 	// 	assert(_board != samGroup[3]);
 			
 	// 	if (_board[30] == board[30] && _board[31] == board[31]) {
-	// 		battleHist`ory[initHeight][msg.sender].battle = 0;
+	// 		battleHistory[initHeight][msg.sender].battle = 0;
 	// 		lastRevived = samGroup[3];
 	// 		samGroup[3] = _board;
 	// 		lastActivity = block.number;
@@ -220,51 +216,52 @@ contract BattleShip {
 	// 	}
 	// }
 
-	function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo, uint8 v, bytes32 r, bytes32 s) public gameStarted notDefender returns (bool) {
-		require(score != board);
-		require(score != battleHistory[initHeight][msg.sender].score);
-		require(playerDB[msg.sender].since > initHeight);
-		require(battleHistory[initHeight][msg.sender].battle == 0);
-		require(block.number <= initHeight + period1 + period2);
-		require(block.number - blockNo < period1);
-		require(blockNo <= block.number - 1 && blockNo < initHeight + period1 && blockNo > initHeight);
-		// require(merkleRoot[0] != 0x0);
-		// todo: require(merkleProofValidate(proofs, keccak256(score), merkleRoot[0]);
-		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
+	// function revealSecret(bytes32 secret, bytes32 score, bool[32] memory slots, uint blockNo, uint8 v, bytes32 r, bytes32 s) public gameStarted notDefender returns (bool) {
+	// 	require(score != board);
+	// 	require(score != battleHistory[initHeight][msg.sender].score);
+	// 	require(playerDB[msg.sender].since > initHeight);
+	// 	require(battleHistory[initHeight][msg.sender].battle == 0);
+	// 	require(block.number <= initHeight + period1 + period2);
+	// 	require(block.number - blockNo < period1);
+	// 	require(blockNo <= block.number - 1 && blockNo < initHeight + period1 && blockNo > initHeight);
+	// 	// require(merkleRoot[0] != 0x0);
+	// 	// todo: require(merkleProofValidate(proofs, keccak256(score), merkleRoot[0]);
+	// 	require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
 
-		battleStat memory newbat;
-		newbat.battle = initHeight;
-		newbat.secret = secret;
-		// newbat.bhash = blockhash(blockNo);
-		newbat.score = keccak256(abi.encodePacked(secret, blockhash(blockNo))); // initialize for the loop below
+	// 	battleStat memory newbat;
+	// 	newbat.battle = initHeight;
+	// 	newbat.secret = secret;
+	// 	// newbat.bhash = blockhash(blockNo);
+	// 	newbat.score = keccak256(abi.encodePacked(secret, blockhash(blockNo))); // initialize for the loop below
 
-		for (uint i = 0; i <= 31; i++) {
-			if(slots[i] == false) {
-				assert(score[i] == board[i]);
-			} else {
-				assert(score[i] == newbat.score[i]);
-			}
-		}
+	// 	for (uint i = 0; i <= 31; i++) {
+	// 		if(slots[i] == false) {
+	// 			assert(score[i] == board[i]);
+	// 		} else {
+	// 			assert(score[i] == newbat.score[i]);
+	// 		}
+	// 	}
 
-		newbat.score = score;
-		battleHistory[initHeight][msg.sender] = newbat;
+	// 	newbat.score = score;
+	// 	battleHistory[initHeight][msg.sender] = newbat;
 
-		// winner and sample group
-		if (winner == address(0) && newbat.score < board) {
-			winner = msg.sender;
-			samGroup[0] = newbat.score;
-		} else if (newbat.score < battleHistory[initHeight][winner].score) {
-			winner = msg.sender;
-			samGroup[1] = samGroup[0];
-			samGroup[0] = newbat.score;
-		} else {
-			samGroup[2] = newbat.score;
-		}
+	// 	// winner and sample group
+	// 	// if (winner == address(0) && newbat.score < board) {
+	// 	// 	winner = msg.sender;
+	// 	// 	samGroup[0] = newbat.score;
+	// 	// } else if (newbat.score < battleHistory[initHeight][winner].score) {
+	// 	// 	winner = msg.sender;
+	// 	// 	samGroup[1] = samGroup[0];
+	// 	// 	samGroup[0] = newbat.score;
+	// 	// } else {
+	// 	// 	samGroup[2] = newbat.score;
+	// 	// }
 
-		lastActivity = block.number;
-		return true;
-		// state channel has to send out ticket after block 'm', i.e., end of revealSecret()
-	}
+	// 	lastActivity = block.number;
+	// 	return true;
+	// 	// state channel has to send out ticket after block 'm', i.e., end of revealSecret()
+	// }
+
 
 	// function lottery(bytes32[] tickets) public gameStarted notDefender returns (bool) {
 	// 	require(battleHistory[initHeight][msg.sender].battle == initHeight);
@@ -292,22 +289,45 @@ contract BattleShip {
                 // }
 	// }
 
-        // function MerkleTreeValidator(bytes32[] memory proof, bool[] memory isLeft, bytes32 targetLeaf, bytes32 merkleRoot) public view returns (bool) {
-                // require(proof.length < 16);  // 16 is an arbitrary number, 2**16=65536 shoud be large enough
-                // require(proof.length == isLeft.length);
-                // MerkleTreeValidatorInterface(MerkleTreeAddr).validate(proof, isLeft, targetLeaf, merkleRoot);
-                // return true;
-        // }
+	function winningNumber(uint blockNo) external view returns (bytes32) {
+	        require(blockNo <= block.number - 1);
+	        return keccak256(abi.encodePacked(board, blockhash(blockNo)));
+        }
+
+        function MerkleTreeValidator(bytes32[] memory proof, bool[] memory isLeft, bytes32 targetLeaf, bytes32 merkleRoot) public view returns (bool) {
+                require(proof.length < 16);  // 16 is an arbitrary number, 2**16=65536 shoud be large enough
+                require(proof.length == isLeft.length);
+                return MerkleTreeValidatorInterface(MerkleTreeAddr).validate(proof, isLeft, targetLeaf, merkleRoot);
+        }
 
 	function submitMerkleRoot(bytes32 _merkleRoot) external ValidatorOnly returns (bool) {
 		require(block.number >= initHeight + period1 + period2 && block.number < initHeight + period1 + period2 + 3);
-	        merkleRoot = _merkleRoot;
+	        // merkleRoot = _merkleRoot;
+	        battleHistory[initHeight].merkleRoot = _merkleRoot;
 	        return true;
         }
 
-	// fallback
-  	function () defenderOnly gameStalled external { 
-  	    winner = defender; 
-  	    require(withdraw()); 
-  	}
+        function getBlockhash(uint blockNo) external view returns (bytes32) {
+                return blockhash(blockNo);
+        }
+
+        function convertScoreString(string scoreString) internal pure returns (bool[32]) {
+                // i.g., convert string "01001...." to bool[32]: [false, true, false, false, true, ...]
+                bytes memory scoreStr = bytes(scoreString);
+                bool[32] memory score;
+                for (uint i = 0; i < scoreStr.length; i++) {
+                        if(scoreStr[i] == '1') {
+                            score[i] = true;
+                        } else {
+                            score[i] = false;
+                        }
+                }
+                return score;
+        }
+
+        // fallback
+        function () defenderOnly gameStalled external { 
+            winner = defender; 
+            require(withdraw()); 
+        }
 }

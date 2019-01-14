@@ -31,9 +31,9 @@ contract BattleShip {
 	address public validator;
 	// address public RNTAddr;
 	uint constant public maxPlayer = 1000;
-	uint constant public period1 = 5;
+	uint constant public period1 = 7;
 	uint constant public period2 = 3;
-	uint constant public period3 = 22;
+	uint constant public period3 = 20;
 	uint constant public period_all = period1 + period2 + period3;  // shoudl be in the range 30-120
 	uint public initHeight;
 	uint public lastActivity;
@@ -51,12 +51,13 @@ contract BattleShip {
 		address wallet; // msg.sender
 		uint since;     // block height when joined
 		bytes32 scoreHash;
-		// uint maxNonce;
 	}
 
 	struct battleStat {
 	        bytes32 merkleRoot;
 		bytes32 board;
+		address ethWinnerAddr;  // only one winner take eth
+		uint ethWinnerReward;
 	}
 
 	mapping (address => playerInfo) playerDB;
@@ -116,7 +117,9 @@ contract BattleShip {
 
 	// WinnerOnly
 	function withdraw() public WinnerOnly returns (bool) {
+	        // make sure winner can claim the reward after next game started
 		require(block.number > initHeight + period_all);
+		// require(block.number < initHeight + period_all + 7);
 		setup = false;
 		winner = address(0);
 		board = bytes32(0);
@@ -130,14 +133,28 @@ contract BattleShip {
 		return true;
 	}
 
+	function claimLotteReward() public returns (bool) {
+		require(merkleRoot[0] != 0x0);
+		// todo: require(merkleProofValidate(proofs, keccak256(score), merkleRoot[0]);
+		require(score != board);
+		require(score != battleHistory[initHeight][msg.sender].score);
+		require(playerDB[msg.sender].since > initHeight);
+		require(battleHistory[initHeight][msg.sender].battle == 0);
+		require(block.number <= initHeight + period1 + period2);
+		require(block.number - blockNo < period1);
+		require(blockNo <= block.number - 1 && blockNo < initHeight + period1 && blockNo > initHeight);
+		require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
+
+        }
+
 	// function randomNumber() public view returns (bytes32) {
 	// 	require(lastRevived != samGroup[3] && samGroup[3] != bytes32(0));
 	// 	require(block.number - lastActivity <= 5);
 	// 	return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], samGroup[3], blockhash(block.number - 1)));
 	// }
 
-	function getPlayerInfo() public view returns (uint, uint, bytes32) {
-		return (playerDB[msg.sender].since, initHeight, playerDB[msg.sender].scoreHash);
+	function getPlayerInfo(address _addr) public view returns (uint, uint, bytes32) {
+		return (playerDB[_addr].since, initHeight, scoreHash);
 	}
 
 	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {
@@ -147,7 +164,6 @@ contract BattleShip {
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
 		board = defense;
-		// newone.maxNonce = 100;
 
 		initHeight = block.number;
 		playerDB[msg.sender] = newone;
@@ -171,7 +187,6 @@ contract BattleShip {
 
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
-		// newone.maxNonce = 10;  // for test
 		newone.scoreHash = scoreHash;
 
 		playerDB[msg.sender] = newone;
@@ -185,7 +200,7 @@ contract BattleShip {
 		require(block.number - blockNo < period1);
 		require(blockNo <= block.number - 1 && blockNo < initHeight + period1 && blockNo >= initHeight);
 
-		_board = keccak256(abi.encodePacked(secret, blockhash(blockNo)));
+		_board = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo)));
 
 		for (uint i = 0; i <= 31; i++) {
 			if(_board[i] < board[i]) {

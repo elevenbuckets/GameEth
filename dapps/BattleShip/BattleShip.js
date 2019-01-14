@@ -5,7 +5,7 @@ const path = require('path');
 const ethUtils = require('ethereumjs-utils');
 const biapi = require('bladeiron_api');
 const MerkleTree = require('merkle_tree');
-//const level = require('level');
+const mkdirp = require(mkdirp);
 
 // 11BE BladeIron Client API
 const BladeIronClient = require('bladeiron_api');
@@ -23,7 +23,7 @@ const fields =
    {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
 ];
 
-const pubKeyToAddress = (sigObj) =>
+const verifySignature = (sigObj) =>
 {
         let signer = '0x' +
               ethUtils.bufferToHex(
@@ -37,6 +37,19 @@ const pubKeyToAddress = (sigObj) =>
         console.log(`signer address: ${signer}`);
 
         return signer === ethUtils.bufferToHex(sigObj.originAddress);
+}
+
+const mkdir_promise = (dirpath) =>
+{
+	const __mkdirp = (dirpath) => (resolve, reject) => 
+	{ 
+		mkdirp(dirpath, (err) => {
+			if (err) return reject(err);
+			resolve(true);
+		})
+	}
+
+	return new Promise(__mkdirp(dirpath));
 }
 
 class BattleShip extends BladeIronClient {
@@ -54,7 +67,6 @@ class BattleShip extends BladeIronClient {
 		this.bestANS = null;
 		this.gameANS = {};
                 this.gamePeriod;
-		//this.db = level(this.configs.database);
                 this.leaves = {};
 		this.winRecords = {}; // validator only
 
@@ -74,14 +86,17 @@ class BattleShip extends BladeIronClient {
                         		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
 
 					if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
-					if (this.userWallet === this.validator) {
-					  if (typeof(this.winRecords[this.initHeight]) === 'undefined') { this.winRecords[this.initHeight] = {}; }
-					  if (typeof(this.leaves[this.initHeight]) === 'undefined') { this.leaves[this.initHeight] = []; }
+					if (typeof(this.leaves[this.initHeight]) === 'undefined') { this.leaves[this.initHeight] = {payload: [], txnames: []}; }
+					if (typeof(this.winRecords[this.initHeight]) === 'undefined') { this.winRecords[this.initHeight] = {}; }
+
+					return mkdir_promise(path.join(this.configs.database, this.initHeight)).then((r) => { 
+						return this.gameStarted;
+					})
 				}
 
 				return this.gameStarted;
 			})
-			.catch((err) => { console.trace(err);})
+			.catch((err) => { console.trace(err); })
 		}	
 
 		this.testOutcome = (raw, blockNo) => 
@@ -112,7 +127,6 @@ class BattleShip extends BladeIronClient {
 						.catch((err) => { console.log(err); throw err; })
 				}
 			})
-
 		}
 
 		this.checkMerkle = (stats) => 
@@ -235,8 +249,12 @@ class BattleShip extends BladeIronClient {
 			if (stats.blockHeight < this.initHeight + 8) return;
 			if (stats.blockHeight >= this.initHeight + 8 + 20) {
 				this.stopTrial();
-				this.generateBlock(this.initHeight);
-				this.unsubscribeChannel();
+				this.generateBlock().then((rc) => { 
+					//this.ipfs_pubsub_publish(this.channelName, Buffer.from(rc.hash));
+					// Instead of broadcasting IPFS hash on pubsub, we simply write it into smart contract! 
+					this.unsubscribeChannel();
+					this.makeMerkleTreeAndUploadRoot(rc.hash);
+				})
 			}
 		}	
 
@@ -395,13 +413,14 @@ class BattleShip extends BladeIronClient {
 					sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
 					
 					// verify signature before checking nonce of the signed address
-					if (pubkeyToAddress(sigout)) {
+					if (verifySignature(sigout)) {
 						// store file on local pool for IPFS publish
 						let txname = ethUtils.sha256(rlpx);
-						fs.writeFile(path.join('DB', this.initHeight, txname), rlpx, (err) => 
+						fs.writeFile(path.join(this.configs.database, this.initHeight, txname), rlpx, (err) => 
 						{ 
 							if (err) throw err;
-							this.leaves[this.initHeight].push(data.payload);
+							this.leaves[this.initHeight]['payload'].push(data.payload);
+							this.leaves[this.initHeight]['txnames'].push(txname);
 						});
 					}
 				})
@@ -436,16 +455,48 @@ class BattleShip extends BladeIronClient {
                 //    and somehow failed to submit here. Perhaps user data entirely off-chain?
                 // 2. hard to make sure this annoucement and generation/submision of Merkle Tree
                 //    is on time
-                this.makeMerkleTreeAndUploadRoot = () => 
+                this.makeMerkleTreeAndUploadRoot = (ipfshash) => 
 		{
                 	let merkleTree = new MerkleTree();
-			let leaves = this.leaves[this.initHeight];
+			let leaves = this.leaves[this.initHeight]['payload'];
 
                         merkleTree.addLeaves(leaves); 
                         merkleTree.makeTree();
                         merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
-	                return this.call(this.ctrName)('submitMerkleRoot')(merkleRoot);
+	                return this.call(this.ctrName)('submitMerkleRoot')(merkleRoot, ipfshash);
                 }
+
+		// for current round by validator only
+		this.generateBlock = () => 
+		{
+			const __genBlockBlob = (initHeight) => (resolve, reject) => 
+			{
+				// Currently, we will group all block data into single JSON and publish it on IPFS
+				let blkObj =  {initHeight: this.initHeight, txCount: this.leaves[this.initHeight][payload].length, data: {} };
+				let c = 0;
+
+				this.leaves[initHeight][txnames].map((tn) => {
+					fs.readFiles(path.join(this.configs.database, initHeight, tn), (err, buf) => 
+					{
+						if (err) return reject(err);
+						blkObj.data[tn] = buf
+						c++;
+						if (c === blkObj.txCount) {
+							fs.writeFile(path.join(this.configs.database, initHeight, 'blockBlob'), blkObj, (err) => {
+								if (err) return reject(err);
+								resolve(path.join(this.configs.database, initHeight, 'blockBlob'));
+							})
+						}
+					})
+				})
+			}
+
+			let stage = new Promise(__genBlockBlob(this.initHeight));
+			stage = stage.then((bbp) => { return this.client.ipfsPut(path.join(this.configs.database, this.initHeight, 'blockBlob')) } )
+				     .catch((err) => { console.trace(err); });
+
+			return stage;
+		}
 
 		this.loadPreviousLeaves = (initHeight) => 
 		{

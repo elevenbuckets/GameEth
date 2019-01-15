@@ -170,6 +170,20 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "MerkleTreeAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "period3",
     "outputs": [
       {
@@ -256,20 +270,6 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "randomNumber",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
     "name": "getPlayerInfo",
     "outputs": [
       {
@@ -282,7 +282,7 @@
       },
       {
         "name": "",
-        "type": "uint256"
+        "type": "bytes32"
       }
     ],
     "payable": false,
@@ -310,7 +310,12 @@
   },
   {
     "constant": false,
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "scoreHash",
+        "type": "bytes32"
+      }
+    ],
     "name": "challenge",
     "outputs": [
       {
@@ -350,38 +355,45 @@
     "type": "function"
   },
   {
-    "constant": false,
+    "constant": true,
     "inputs": [
-      {
-        "name": "secret",
-        "type": "bytes32"
-      },
-      {
-        "name": "score",
-        "type": "bytes32"
-      },
-      {
-        "name": "slots",
-        "type": "bool[32]"
-      },
       {
         "name": "blockNo",
         "type": "uint256"
-      },
+      }
+    ],
+    "name": "winningNumber",
+    "outputs": [
       {
-        "name": "v",
-        "type": "uint8"
-      },
-      {
-        "name": "r",
-        "type": "bytes32"
-      },
-      {
-        "name": "s",
+        "name": "",
         "type": "bytes32"
       }
     ],
-    "name": "revealSecret",
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "proof",
+        "type": "bytes32[]"
+      },
+      {
+        "name": "isLeft",
+        "type": "bool[]"
+      },
+      {
+        "name": "targetLeaf",
+        "type": "bytes32"
+      },
+      {
+        "name": "_merkleRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "MerkleTreeValidator",
     "outputs": [
       {
         "name": "",
@@ -389,7 +401,7 @@
       }
     ],
     "payable": false,
-    "stateMutability": "nonpayable",
+    "stateMutability": "pure",
     "type": "function"
   },
   {
@@ -409,6 +421,25 @@
     ],
     "payable": false,
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "blockNo",
+        "type": "uint256"
+      }
+    ],
+    "name": "getBlockhash",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
     "type": "function"
   }
 ]

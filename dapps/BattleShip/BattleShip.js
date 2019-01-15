@@ -5,7 +5,7 @@ const path = require('path');
 const ethUtils = require('ethereumjs-utils');
 const biapi = require('bladeiron_api');
 const MerkleTree = require('merkle_tree');
-const level = require('level');
+const mkdirp = require(mkdirp);
 
 // 11BE BladeIron Client API
 const BladeIronClient = require('bladeiron_api');
@@ -23,7 +23,7 @@ const fields =
    {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
 ];
 
-const pubKeyToAddress = (sigObj) =>
+const verifySignature = (sigObj) =>
 {
         let signer = '0x' +
               ethUtils.bufferToHex(
@@ -37,6 +37,19 @@ const pubKeyToAddress = (sigObj) =>
         console.log(`signer address: ${signer}`);
 
         return signer === ethUtils.bufferToHex(sigObj.originAddress);
+}
+
+const mkdir_promise = (dirpath) =>
+{
+	const __mkdirp = (dirpath) => (resolve, reject) => 
+	{ 
+		mkdirp(dirpath, (err) => {
+			if (err) return reject(err);
+			resolve(true);
+		})
+	}
+
+	return new Promise(__mkdirp(dirpath));
 }
 
 class BattleShip extends BladeIronClient {
@@ -54,9 +67,8 @@ class BattleShip extends BladeIronClient {
 		this.bestANS = null;
 		this.gameANS = {};
                 this.gamePeriod;
-		this.db = level(this.configs.database);
-                this.leaves = [];
-		this.winRecords = {};
+                this.leaves = {};
+		this.winRecords = {}; // validator only
 
 		this.probe = () => 
 		{
@@ -74,15 +86,17 @@ class BattleShip extends BladeIronClient {
                         		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
 
 					if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
-					if (
-					     this.userWallet === this.validator 
-					  && typeof(this.winRecords[this.initHeight]) === 'undefined'
-					) { this.winRecords[this.initHeight] = {}; }
+					if (typeof(this.leaves[this.initHeight]) === 'undefined') { this.leaves[this.initHeight] = {payload: [], txnames: []}; }
+					if (typeof(this.winRecords[this.initHeight]) === 'undefined') { this.winRecords[this.initHeight] = {}; }
+
+					return mkdir_promise(path.join(this.configs.database, this.initHeight)).then((r) => { 
+						return this.gameStarted;
+					})
 				}
 
 				return this.gameStarted;
 			})
-			.catch((err) => { console.trace(err);})
+			.catch((err) => { console.trace(err); })
 		}	
 
 		this.testOutcome = (raw, blockNo) => 
@@ -113,7 +127,6 @@ class BattleShip extends BladeIronClient {
 						.catch((err) => { console.log(err); throw err; })
 				}
 			})
-
 		}
 
 		this.checkMerkle = (stats) => 
@@ -130,6 +143,17 @@ class BattleShip extends BladeIronClient {
 		{
 			if ( stats.blockHeight <= this.initHeight + 8 ) {
 				return Promise.resolve(false);
+			} else if ( 
+			        stats.blokHeight > this.initHeight + 8 + 20
+			) {
+				this.stopTrial();
+			        if (this.results[this.initHeight].length > 0) {
+					console.log(`Address ${this.userWallet} won ${this.results[this.initHeight].length} times! Awaiting Merkle root to withdraw prize...`);
+					this.client.subscribe('ethstats');
+					this.client.on('ethstats', this.checkMerkle);
+
+					return Promise.resolve(false);
+				}
 			} else if (
 			 	stats.blockHeight > this.initHeight + 8 
 			     && Object.keys(this.gameANS[this.initHeight].tickets).length != 0
@@ -174,7 +198,7 @@ class BattleShip extends BladeIronClient {
 				if (!rc) return false;
 				this.call(this.ctrName)('winningNumber')(stats.blockHeight).then((raffle) => {
 					Object.values(this.gameANS[this.initHeight].tickets).map((ticket) => {
-						if (raffle.substr(64) === ticket.substr(64)) {
+						if (raffle.substr(64) === ticket.substr(64)) { // compare to determine if winning
 							let data = this.abi.encodeParameters(
 							[
 								'bytes32',
@@ -203,13 +227,37 @@ class BattleShip extends BladeIronClient {
 								};
                         					ethUtils.defineProperties(m, fields, {...params, ...signature});
 								this.ipfs_pubsub_publish(this.channelName, m.serialize());
+
+								this.results[this.initHeight].push({
+									secret: this.bestANS.secret,
+									slots: this.bestANS.slots.map((s) => { return s ? 1 : 0 }).join(''),
+									blockNo: this.bestANS.blockNo,
+									submitBlock: stats.blockHeight,
+									ticket,
+									...signature
+								});
 							})
 						}
 					})
 				})
 			})
 		}
-	
+
+		this.verify = (stats) => 
+		{
+			if (!this.gameStarted) return;
+			if (stats.blockHeight < this.initHeight + 8) return;
+			if (stats.blockHeight >= this.initHeight + 8 + 20) {
+				this.stopTrial();
+				this.generateBlock().then((rc) => { 
+					//this.ipfs_pubsub_publish(this.channelName, Buffer.from(rc.hash));
+					// Instead of broadcasting IPFS hash on pubsub, we simply write it into smart contract! 
+					this.unsubscribeChannel();
+					this.makeMerkleTreeAndUploadRoot(rc.hash);
+				})
+			}
+		}	
+
 		this.trial = (stats) => 
 		{
 			if (!this.gameStarted) return;
@@ -286,7 +334,6 @@ class BattleShip extends BladeIronClient {
 					}
 				})
 			})
-
 		}
 
 		this.stopTrial = () => 
@@ -308,7 +355,11 @@ class BattleShip extends BladeIronClient {
 				if(started) {
 					console.log('Game started !!!');
 					this.client.subscribe('ethstats');
-					this.client.on('ethstats', this.trial);
+					if (this.userWallet === this.validator) {
+						this.client.on('ethstats', this.verify);
+					} else {
+						this.client.on('ethstats', this.trial);
+					}
 				} else {
 					console.log('Game has not yet been set ...');
 				}
@@ -329,9 +380,13 @@ class BattleShip extends BladeIronClient {
 			try {
 				ethUtils.defineProperties(data, fields, rlpx); // decode
 				address = ethUtils.bufferToHex(data.originAddress);
-				if ( this.winRecords[address] > 10) {
+				if ( this.winRecords[this.initHeight][address] > 10) {
 					throw `address ${address} exceeds round limit ... ignored`;
+				} else if (typeof(this.winRecords[this.initHeight][address]) === 'undefined')
+				     this.winRecords[this.initHeight][address] = 0;
 				}
+
+				this.winRecords[this.initHeight][address]++;
 			} catch(err) {
 				console.trace(err);
 				return;
@@ -351,18 +406,24 @@ class BattleShip extends BladeIronClient {
 	
 				let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
 	
-				// signature is signed against payload
-				// FIXME: what about submitBlock??????
-				// FIXME: STILL needs to check winningNumber() against ticket
-				// ... so, ticket from address still should be part of the tx!!!
-				let chkhash = Buffer.from(data.payload.slice(2), 'hex'); // Buffer
-				sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
-				
-				// verify signature before checking nonce of the signed address
-				if (pubkeyToAddress(sigout)) {
-					this.leaves.push(data.payload);
-					// store file on local pool for IPFS publish
-				}
+				this.call(this.ctrName)('winningNumber')(ethUtils.bufferToInt(data.submitBlock)).then((raffle) => {
+					if (raffle.substr(64) !== ticket.substr(64)) return;
+
+					let chkhash = Buffer.from(data.payload.slice(2), 'hex'); // Buffer
+					sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
+					
+					// verify signature before checking nonce of the signed address
+					if (verifySignature(sigout)) {
+						// store file on local pool for IPFS publish
+						let txname = ethUtils.sha256(rlpx);
+						fs.writeFile(path.join(this.configs.database, this.initHeight, txname), rlpx, (err) => 
+						{ 
+							if (err) throw err;
+							this.leaves[this.initHeight]['payload'].push(data.payload);
+							this.leaves[this.initHeight]['txnames'].push(txname);
+						});
+					}
+				})
 	    		})
 			.catch((err) => { console.trace(err); return; });
 		}
@@ -380,55 +441,90 @@ class BattleShip extends BladeIronClient {
 			}
 
                         return this.ipfs_pubsub_subscribe(this.channelName)(handler);
-                };
+                }
 
                 this.unsubscribeChannel = () =>
                 {
-                        this.ipfs_pubsub_unsubscribe(this.channelName).then(()=>{
-                                this.channelName = '';
+                        this.ipfs_pubsub_unsubscribe(this.channelName).then((rc) => {
+                                if (rc) this.channelName = '';
                         })
-                };
+                }
 
-                this.v_announce = () => 
-                {
-                        this.ipfs_pubsub_publish(this.channelName, Buffer.from('Stop submiting scores') ).then(() => {
-                                this.v_uploadMerkleTree(this.leaves);
-                        }); 
-                        // Perhaps user sign-in should be entirely off-chain, i.e., no playerDB in contract. 
-                        // 1. It's possible that user has registered on-chain (added to playerDB) 
-                        //    and somehow failed to submit here. Perhaps user data entirely off-chain?
-                        // 2. hard to make sure this annoucement and generation/submision of Merkle Tree
-                        //    is on time
-                };
+                // Perhaps user sign-in should be entirely off-chain, i.e., no playerDB in contract. 
+                // 1. It's possible that user has registered on-chain (added to playerDB) 
+                //    and somehow failed to submit here. Perhaps user data entirely off-chain?
+                // 2. hard to make sure this annoucement and generation/submision of Merkle Tree
+                //    is on time
+                this.makeMerkleTreeAndUploadRoot = (ipfshash) => 
+		{
+                	let merkleTree = new MerkleTree();
+			let leaves = this.leaves[this.initHeight]['payload'];
 
-                this.merkleTree = new MerkleTree();
-                this.v_makeMerkleTreeAndUploadRoot = (leaves) => {
                         merkleTree.addLeaves(leaves); 
                         merkleTree.makeTree();
                         merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
-	                return this.call(this.ctrName)('submitMerkleRoot')(merkleRoot, 0);
-                };
+	                return this.call(this.ctrName)('submitMerkleRoot')(merkleRoot, ipfshash);
+                }
 
-                this.validateMerkleProof = (targetLeaf) => {
-                        if (this.merkleTree.isReady) {
-                                let txIdx = this.merkleTree.leaves.findIndex(x=> Buffer.compare(x, targetLeaf)==0);
-                                if (txIdx == -1) {
-                                        return false;
-                                };
-                        };
+		// for current round by validator only
+		this.generateBlock = () => 
+		{
+			const __genBlockBlob = (initHeight) => (resolve, reject) => 
+			{
+				// Currently, we will group all block data into single JSON and publish it on IPFS
+				let blkObj =  {initHeight: this.initHeight, txCount: this.leaves[this.initHeight][payload].length, data: {} };
+				let c = 0;
+
+				this.leaves[initHeight][txnames].map((tn) => {
+					fs.readFiles(path.join(this.configs.database, initHeight, tn), (err, buf) => 
+					{
+						if (err) return reject(err);
+						blkObj.data[tn] = buf
+						c++;
+						if (c === blkObj.txCount) {
+							fs.writeFile(path.join(this.configs.database, initHeight, 'blockBlob'), blkObj, (err) => {
+								if (err) return reject(err);
+								resolve(path.join(this.configs.database, initHeight, 'blockBlob'));
+							})
+						}
+					})
+				})
+			}
+
+			let stage = new Promise(__genBlockBlob(this.initHeight));
+			stage = stage.then((bbp) => { return this.client.ipfsPut(path.join(this.configs.database, this.initHeight, 'blockBlob')) } )
+				     .catch((err) => { console.trace(err); });
+
+			return stage;
+		}
+
+		this.loadPreviousLeaves = (initHeight) => 
+		{
+			// query IPFS hash from smart contract via initHeight
+			// load block data from IPFS
+			// get all tickethash from all rlpx contents
+			// put them in leaves for merkleTree calculation
+		}
+
+                this.validateMerkleProof = (targetLeaf) => 
+		{
+                	let merkleTree = new MerkleTree();
+                        merkleTree.addLeaves(leaves); // FIXME: To get leaves, we must know about initHeight and IPFS hash of block data...
+                        merkleTree.makeTree();
+
+                        if (merkleTree.isReady) {
+                                let txIdx = merkleTree.leaves.findIndex( (x) => { Buffer.compare(x, targetLeaf) == 0 } );
+                                if (txIdx == -1) return false;
+                        }
+
                         let proofArr = merkleTree.getProof(txIdx, true);
                         let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});
                         let isLeft = proofArr[0];
+
                         targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
                         let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
-                        return this.call('MerkleTreeValidator')('validate')(proof, isLeft, targetLeaf, merkleRoot).then((tf) => { return tf;});
-                };
-
-                this.submitMerkleRoot = (id) =>  // id : either 0 or 1
-                {
-                        merkleRoot = this.makeMerkleTree();  // how to obtain leaves?
-			return this.call(this.ctrName)('submitMerkleRoot')(merkleRoot, id);
-                };
+                        return this.call('MerkleTreeValidator')('validate')(proof, isLeft, targetLeaf, merkleRoot);
+                }
 	}
 }
 

@@ -469,9 +469,9 @@ class BattleShip extends BladeIronClient {
 			let blkObj =  {initHeight: this.initHeight, data: {} };
                 	let merkleTree = new MerkleTree();
 
-			let leaves = Object.keys(this.winRecords[this.initHeight]).map((addr) => {
+			let leaves = Object.keys(this.winRecords[blkObj.initHeight]).map((addr) => {
 				let claimhash = this.calcClaimHash(addr);
-				blkObj.data[addr] = {[claimhash]: this.winRecords[this.initHeight][addr]};
+				blkObj.data[addr] = {[claimhash]: this.winRecords[blkObj.initHeight][addr]};
 				return claimhash;
 			})
 
@@ -481,7 +481,7 @@ class BattleShip extends BladeIronClient {
 
 			let stage = this.generateBlock(blkObj);
 			stage = stage.then((rc) => {
-	                	return this.call(this.ctrName)('submitMerkleRoot')(merkleRoot, rc.hash);
+	                	return this.call(this.ctrName)('submitMerkleRoot')(blkObj.initHeight, merkleRoot, rc.hash);
 			});
 			
 			return stage;

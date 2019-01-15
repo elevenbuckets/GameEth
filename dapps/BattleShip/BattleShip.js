@@ -130,9 +130,11 @@ class BattleShip extends BladeIronClient {
 		this.checkMerkle = (stats) => 
 		{
 			return this.call(this.ctrName)('merkleRoot')().then((mr) => {
-				if (mr !== '0x0') {
+				if (mr !== '0x0' && this.results[this.initHeight].length > 0) {
 					// double check all submitted winning tickets are included
+					let myClaimHash = this.verifyClaimHash();
 					// preparing data structure to call withdraw, if any
+					this.validateMerkleProof(myClaimHash);
 				}
 			})
 		}
@@ -196,7 +198,7 @@ class BattleShip extends BladeIronClient {
 				if (!rc) return false;
 				this.call(this.ctrName)('winningNumber')(stats.blockHeight).then((raffle) => {
 					Object.values(this.gameANS[this.initHeight].tickets).map((ticket) => {
-						if (raffle.substr(64) === ticket.substr(64)) { // compare to determine if winning
+						if (raffle.substr(65) === ticket.substr(65)) { // compare to determine if winning
 							let data = this.abi.encodeParameters(
 							[
 								'bytes32',
@@ -216,7 +218,10 @@ class BattleShip extends BladeIronClient {
 							let tickethash = ethUtils.hashPersonalMessage(Buffer.from(data));
 							this.client.call('unlockAndSign', [this.userWallet, tickethash]).then((signature) => 
 							{
+								let nonce = this.results[this.initHeight].length + 1;
+
 								this.results[this.initHeight].push({
+									nonce,
 									secret: this.bestANS.secret,
 									slots: this.bestANS.slots.map((s) => { return s ? 1 : 0 }).join(''),
 									blockNo: this.bestANS.blockNo,
@@ -227,7 +232,7 @@ class BattleShip extends BladeIronClient {
 
 								let m = {};
 								let params = {
-									nonce: this.results[this.initHeight].length,
+									nonce,
 									originAddress: this.userWallet, 
 									submitBlock: stats.blockHeight,
 									ticket,
@@ -403,7 +408,7 @@ class BattleShip extends BladeIronClient {
 				let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
 	
 				this.call(this.ctrName)('winningNumber')(ethUtils.bufferToInt(data.submitBlock)).then((raffle) => {
-					if (raffle.substr(64) !== ticket.substr(64)) return;
+					if (raffle.substr(65) !== ticket.substr(65)) return;
 
 					let chkhash = Buffer.from(data.payload.slice(2), 'hex'); // Buffer
 					sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
@@ -440,7 +445,23 @@ class BattleShip extends BladeIronClient {
                         })
                 }
 
-		// get leaves
+		this.verifyClaimHash = () => 
+		{
+			let fmtArray = ['address'];
+			let pkgArray = [ address ];
+
+			const compare = (a,b) => { if (ethUtils.bufferToInt(a.nonce) > ethUtils.bufferToInt(b.nonce)) { return 1 } else { return -1 }; return 0 };
+
+			this.results[this.initHeight].sort(compare).slice(0, 10).map((txObj) => {
+				pkgArray.push(ethUtils.bufferToInt(txObj.submitBlock)); fmtArray.push('uint');
+				pkgArray.push(ethUtils.bufferToHex(txObj.ticket)); fmtArray.push('bytes32');
+			});
+
+			let claimset = abi.encodeParameters(fmtArray, pkgArray);
+
+			return ethUtils.bufferToHex(ethUtils.keccak256(claimset));
+		}
+
 		this.calcClaimHash = (address) => 
 		{
 			let fmtArray = ['address'];

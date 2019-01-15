@@ -32,15 +32,14 @@ contract BattleShip {
 	// address public RNTAddr;
 	uint constant public maxPlayer = 1000;
 	uint constant public maxTicketNumber = 5;  // per player
-	uint constant public maxLotteWins= 10;  // per player
-	uint constant public period1 = 7;
-	uint constant public period2 = 3;
-	uint constant public period3 = 20;
-	uint constant public period_all = period1 + period2 + period3;  // shoudl be in the range 30-120
+	// uint constant public period1 = 7;
+	// uint constant public period2 = 3;
+	// uint constant public period3 = 20;
+	uint constant public period_all = 30;  // shoudl be in the range 30-120
 	uint public initHeight;
 	// uint public lastActivity;
 	// bytes32 public difficulty = 0x000000000000000000000000000000ffffffffffffffffffffffffffffffffff;
-	bytes32 public board;  // remove later
+	// bytes32 public board;  // remove later
 	uint public fee = 10000000000000000;
 	bool public setup = false;
 	uint public playercount = 0;
@@ -126,7 +125,7 @@ contract BattleShip {
 		// require(block.number < initHeightJoined + period_all + 7);
 		setup = false;
 		winner = address(0);
-		board = bytes32(0);
+		// board = bytes32(0);
 		// lastRevived = bytes32(0);
 		// samGroup[3] = bytes32(0);
 		playercount = 0;
@@ -149,13 +148,13 @@ contract BattleShip {
 	    bool[] memory isLeft
 	) public returns (bool) {
 		require(playerClaimedReward[msg.sender] == false, "already claimed");
-		require(winningTickets.length <= maxLotteWins, "you cannot claim more tickets");
+		require(winningTickets.length <= 10, "you cannot claim more tickets");
 	        require(proof.length == isLeft.length, "len of proof/isLeft mismatch");
 	        require(winningTickets.length == submitBlocks.length, "submitBlocks and winningTickets mismatch");
 		require(battleHistory[initHeightJoined].merkleRoot != 0x0, "no merkle root yet");
 		require(block.number > initHeightJoined + period_all, "too early");
-		require(block.number < initHeightJoined + period_all + period1, "too late");
-		require(playerDB[msg.sender].since > initHeightJoined && playerDB[msg.sender].since < initHeightJoined + period1 + period2, "wrong round");
+		require(block.number < initHeightJoined + period_all + 7, "too late");
+		require(playerDB[msg.sender].since > initHeightJoined && playerDB[msg.sender].since < initHeightJoined + 10, "wrong round");
 		// require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
 
                 // No second chance: if one of the following verification failed, the player cannot call this function again.
@@ -215,7 +214,7 @@ contract BattleShip {
                         require(validTicket, "The winning ticket is not yours");
 
                         // the ticket wins or not
-	                winNumber = keccak256(abi.encodePacked(board, blockhash(submitBlocks[i])));
+	                winNumber = keccak256(abi.encodePacked(battleHistory[initHeightJoined].board, blockhash(submitBlocks[i])));
                         // if (winNumber[30] == winningTickets[i][30] && winNumber[31] == winningTickets[i][31]) {
                         if (winNumber[31] == winningTickets[i][31]) {
                                 winningTicketCounter += 1;
@@ -232,7 +231,7 @@ contract BattleShip {
 
         function generateTickets(bytes32 score, uint initHeightJoined) public returns (bytes32[]){
                 bytes32[] memory tickets;
-                uint ticketSeedBlockNo = initHeightJoined + period1 + period2;  // make it global?
+                uint ticketSeedBlockNo = initHeightJoined + 10;  // make it global?
 		for (uint i = 0; i <= getNumOfTickets(score); i++) {
 		        tickets[i] = keccak256(abi.encodePacked(score, ticketSeedBlockNo, i+1));  // idx of ticket start from 1
                 }
@@ -270,7 +269,7 @@ contract BattleShip {
 
 		newone.wallet = msg.sender;
 		newone.since  = block.number;
-		board = defense;
+		// board = defense;
 
 		initHeight = block.number;
 		playerDB[msg.sender] = newone;
@@ -279,7 +278,7 @@ contract BattleShip {
 		// lastRevived = bytes32(0);
 		// samGroup[3] = bytes32(0);
 
-	        battleHistory[initHeight].board = board;
+	        battleHistory[initHeight].board = defense;
 
 		return true;
 	}
@@ -287,7 +286,7 @@ contract BattleShip {
 	// Join game
 	function challenge(bytes32 scoreHash) public payable feePaid notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].since < initHeight);
-		require(block.number >= initHeight + period1 && block.number < initHeight + period1 + period2);
+		require(block.number >= initHeight + 7 && block.number < initHeight + 10);
 		require(playercount + 1 <= maxPlayer);
 
 		playerInfo memory newone;
@@ -304,14 +303,14 @@ contract BattleShip {
 	}
 
 	function testOutcome(bytes32 secret, uint blockNo) public gameStarted view returns (bytes32 _board, bool[32] memory _slots) {
-		require(block.number < initHeight + period1 && block.number >= initHeight);
-		require(block.number - blockNo < period1);
-		require(blockNo <= block.number - 1 && blockNo < initHeight + period1 && blockNo >= initHeight);
+		require(block.number < initHeight + 7 && block.number >= initHeight);
+		require(block.number - blockNo < 7);
+		require(blockNo <= block.number - 1 && blockNo < initHeight + 7 && blockNo >= initHeight);
 
 		_board = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo)));
 
 		for (uint i = 0; i <= 31; i++) {
-			if(_board[i] < board[i]) {
+			if(_board[i] < battleHistory[initHeight].board[i]) {
 				_slots[i] = true;
 			}
 		}
@@ -424,7 +423,7 @@ contract BattleShip {
         }
 
 	function submitMerkleRoot(uint _initHeight, bytes32 _merkleRoot, string _ipfsAddr) external ValidatorOnly returns (bool) {
-		require(block.number >= _initHeight + period1 + period2 && block.number < _initHeight + period1 + period2 + 3);
+		require(block.number >= _initHeight + period_all && block.number < _initHeight + period_all + 3);
 	        battleHistory[_initHeight].merkleRoot = _merkleRoot;
 	        battleHistory[_initHeight].ipfsAddr = _ipfsAddr;
 

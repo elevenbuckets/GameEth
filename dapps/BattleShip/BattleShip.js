@@ -115,7 +115,7 @@ class BattleShip extends BladeIronClient {
 			//let msgSHA256Buffer = Buffer.from(secret.slice(2), 'hex');
 			let fee = '10000000000000000';
 			return this.client.call('ethNetStatus').then((rc) => {
-				if (rc.blockHeight <= this.initHeight + 7) {
+				if (rc.blockHeight <= this.initHeight + 10) {
 					return this.sendTk(this.ctrName)('challenge')(scorehash)(fee)
 						   .then((qid) => {
 							console.log(`DEBUG: QID = ${qid}`);

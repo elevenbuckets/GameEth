@@ -129,17 +129,57 @@ class BattleShip extends BladeIronClient {
 
 		this.checkMerkle = (stats) => 
 		{
-			return this.call(this.ctrName)('merkleRoot')().then((mr) => {
-				if (mr !== '0x0' && this.results[this.initHeight].length > 0) {
+			let p = ['merkleRoot', 'ipfsAddr'].map((c) => { return this.call(this.ctrName)(c)() });
+			Promise.all(p).then((plist) => {
+				let mr = plist[0]; // block merkle root
+				let bd = plist[1]; // IPFS hash of block
+
+				if (mr !== '0x0' && bd != '' && this.results[this.initHeight].length > 0) 
+				{
+					this.stopTrial();
 					// double check all submitted winning tickets are included
 					let myClaimHash = this.verifyClaimHash();
 					// preparing data structure to call withdraw, if any
-					this.validateMerkleProof(myClaimHash);
+					this.validateMerkleProof(myClaimHash, bd).then((rc) => 
+					{
+						// By now, this.myClaims should be ready to use
+						if (rc) {
+							let args = 
+							[
+								this.myClaims.secret,
+								this.myClaims.slots,
+								this.myClaims.blockNo,
+								this.myClaims.submitBlocks,
+								this.myClaims.winningTickets,
+								this.myClaims.proof,
+								this.myClaims.isLeft
+							];
+
+							return this.sendTk(this.ctrName)('claimLotteReward')(...args)
+								   .then((qid) => { return this.getReceipts(qid); })
+								   .then((rx) => { 
+								   	let tx = rx[0];
+									console.dir(tx);
+									if (tx.status !== '0x1') {
+										throw "Claim Lottery Error!";
+									} else {
+										console.log(`***** Congretulation!!! YOU WON!!! *****`);
+										console.dir(this.results);
+										console.dir(this.myClaims);
+										console.log(`MerkleRoot: ${mr}`);
+										console.log(`ClaimHash: ${myClaimHash}`);
+									}
+								   })
+								   .catch((err) => { console.trace(err); return; });
+						} else {
+							console.log(`Merkle Proof Process FAILED!!!!!!`);
+						}
+					})
 				}
 			})
 		}
 
-		this.calcTicket = () => 
+		this.calcTickets = () => 
 		{
 			if ( stats.blockHeight <= this.initHeight + 8 ) {
 				return Promise.resolve(false);
@@ -240,8 +280,9 @@ class BattleShip extends BladeIronClient {
 								};
 
                         					ethUtils.defineProperties(m, fields, {...params, ...signature});
-								this.ipfs_pubsub_publish(this.channelName, m.serialize());
+								return this.ipfs_pubsub_publish(this.channelName, m.serialize());
 							})
+							.catch((err) => { console.trace(err); });
 						}
 					})
 				})
@@ -450,12 +491,27 @@ class BattleShip extends BladeIronClient {
 			let fmtArray = ['address'];
 			let pkgArray = [ address ];
 
+			this.myClaims = 
+			{ 
+				  secret: this.bestANS.secret, 
+			   	   slots: this.bestANS.slots.map((s) => { return s ? 1 : 0 }).join(''),
+			         blockNo: this.bestANS.blockNo,
+			    submitBlocks: [],
+			  winningTickets: []
+			}
+
 			const compare = (a,b) => { if (ethUtils.bufferToInt(a.nonce) > ethUtils.bufferToInt(b.nonce)) { return 1 } else { return -1 }; return 0 };
 
-			this.results[this.initHeight].sort(compare).slice(0, 10).map((txObj) => {
-				pkgArray.push(ethUtils.bufferToInt(txObj.submitBlock)); fmtArray.push('uint');
-				pkgArray.push(ethUtils.bufferToHex(txObj.ticket)); fmtArray.push('bytes32');
-			});
+			this.call(this.ctrName)('generateTickets')(this.bestANS.score).then((tlist) => {
+				this.results[this.initHeight].sort(compare).slice(0, 10).map((txObj) => {
+					let __submitBlock = ethUtils.bufferToInt(txObj.submitBlock);
+					let __ticket      = ethUtils.bufferToHex(txObj.ticket);
+					pkgArray.push(__submitBlock); fmtArray.push('uint');
+					pkgArray.push(__ticket); fmtArray.push('bytes32');
+					this.myClaims.submitBlocks.push(__submitBlock);
+					this.myClaims.winnerTickets.push(tlist.indexOf(__ticket));
+				});
+			})
 
 			let claimset = abi.encodeParameters(fmtArray, pkgArray);
 
@@ -526,32 +582,47 @@ class BattleShip extends BladeIronClient {
 			return stage;
 		}
 
-		this.loadPreviousLeaves = (initHeight) => 
+		this.loadPreviousLeaves = (ipfsHash) => 
 		{
-			// query IPFS hash from smart contract via initHeight
 			// load block data from IPFS
 			// get all tickethash from all rlpx contents
 			// put them in leaves for merkleTree calculation
+			return this.ipfsRead(ipfsHash).then((blockBuffer) => {
+				let blockJSON = JSON.parse(blockBuffer.toString());
+
+				if (blockJSON.initHeight != this.initHeight) {
+					console.log(`Oh No! Did not get IPFS data for ${this.initHeight}, got data for round ${blockJSON.initHeight} instead`);
+					return [];
+				}
+				let leaves = Object.keys(blockJSON.data);
+				return leaves;
+			})
 		}
 
-                this.validateMerkleProof = (targetLeaf) => 
+                this.validateMerkleProof = (targetLeaf, ipfsHash) => 
 		{
-                	let merkleTree = new MerkleTree();
-                        merkleTree.addLeaves(leaves); // FIXME: To get leaves, we must know about initHeight and IPFS hash of block data...
-                        merkleTree.makeTree();
-
-                        if (merkleTree.isReady) {
-                                let txIdx = merkleTree.leaves.findIndex( (x) => { Buffer.compare(x, targetLeaf) == 0 } );
-                                if (txIdx == -1) return false;
-                        }
-
-                        let proofArr = merkleTree.getProof(txIdx, true);
-                        let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});
-                        let isLeft = proofArr[0];
-
-                        targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
-                        let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
-                        return this.call('MerkleTreeValidator')('validate')(proof, isLeft, targetLeaf, merkleRoot);
+			return this.loadPreviousLeaves(ipfsHash).then((leaves) => {
+	                	let merkleTree = new MerkleTree();
+	                        merkleTree.addLeaves(leaves); 
+	                        merkleTree.makeTree();
+	
+	                        if (merkleTree.isReady) {
+	                                let txIdx = merkleTree.leaves.findIndex( (x) => { Buffer.compare(x, targetLeaf) == 0 } );
+	                                if (txIdx == -1) return false;
+	                        }
+	
+	                        let proofArr = merkleTree.getProof(txIdx, true);
+	                        let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});
+	                        let isLeft = proofArr[0];
+	
+	                        targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
+	                        let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
+	
+	                        return this.call(this.ctrName)('merkleTreeValidator')(proof, isLeft, targetLeaf, merkleRoot).then((rc) => {
+					if (rc) this.myClaims = { ...this.myClaims, proof, isLeft };
+					return rc;
+				})
+			})
                 }
 	}
 }

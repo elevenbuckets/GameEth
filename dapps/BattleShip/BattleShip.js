@@ -5,7 +5,7 @@ const path = require('path');
 const ethUtils = require('ethereumjs-utils');
 const biapi = require('bladeiron_api');
 const MerkleTree = require('merkle_tree');
-const mkdirp = require(mkdirp);
+const mkdirp = require('mkdirp');
 
 // 11BE BladeIron Client API
 const BladeIronClient = require('bladeiron_api');
@@ -245,7 +245,7 @@ class BattleShip extends BladeIronClient {
 								'string',
 								'uint',
 								'uint',
-								'bytes32
+								'bytes32'
 							],
 							[
 								this.bestANS.secret,
@@ -426,7 +426,7 @@ class BattleShip extends BladeIronClient {
 				address = ethUtils.bufferToHex(data.originAddress);
 				if ( this.winRecords[this.initHeight][address].length > 10) {
 					throw `address ${address} exceeds round limit ... ignored`;
-				} else if (typeof(this.winRecords[this.initHeight][address]) === 'undefined')
+				} else if (typeof(this.winRecords[this.initHeight][address]) === 'undefined') {
 				     this.winRecords[this.initHeight][address] = [];
 				}
 			} catch(err) {
@@ -573,7 +573,7 @@ class BattleShip extends BladeIronClient {
 					if (err) return reject(err);
 					resolve(path.join(this.configs.database, blkObj.initHeight, 'blockBlob'));
 				})
-			})
+			}
 
 			let stage = new Promise(__genBlockBlob(blkObj));
 			stage = stage.then((blockBlobPath) => { return this.client.ipfsPut(blockBlobPath) } )

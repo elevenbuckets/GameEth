@@ -83,9 +83,15 @@ class BattleShip extends BladeIronClient {
 					this.gamePeriod = Number(plist[3]);
 					this.validator = plist[4];
                         		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
+					
+					// Reset
+					this.myClaims = {};
+					this.blockBest = {};
+					this.bestANS = null;
 
 					if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
 					if (typeof(this.winRecords[this.initHeight]) === 'undefined') { this.winRecords[this.initHeight] = {}; }
+					if (typeof(this.gameANS[this.initHeight]) === 'undefined') { this.gameANS[this.initHeight] = {}; }
 
 					return mkdir_promise(path.join(this.configs.database, String(this.initHeight))).then((r) => { 
 						return this.gameStarted;
@@ -304,7 +310,6 @@ class BattleShip extends BladeIronClient {
 
 		this.trial = (stats) => 
 		{
-			console.dir(stats);
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 5) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;

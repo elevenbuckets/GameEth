@@ -15,7 +15,7 @@ import "./MerkleTreeValidatorInterface.sol";
 //    start ------------ n ------- m -------------------------------- end --------
 //          calc           reg to    lottery, each round: 0-n winners     mr submit to chain;
 //                         sc        (only on sc)                         withdraw eth/claim reward
-//          (period1)      (period2) (period3)
+//          (period1)      (period2) (period3)                            could start next round
 //
 //  * sc: state channel; mr: merkle root
 //  * period_all = period1 + period2 + period3
@@ -31,27 +31,19 @@ contract BattleShip {
 	address public validator;
 	// address public RNTAddr;
 	uint constant public maxPlayer = 1000;
-	// uint constant public maxTicketNumber = 5;  // per player
-	// uint constant public period1 = 7;
-	// uint constant public period2 = 3;
-	// uint constant public period3 = 20;
-	uint constant public period_all = 30;  // shoudl be in the range 30-120
+	uint constant public period_all = 30;  // 7 + 3 + 20
 	uint public initHeight;
-	uint public initHeightJoined;
 	// uint public lastActivity;
 	// bytes32 public difficulty = 0x000000000000000000000000000000ffffffffffffffffffffffffffffffffff;
-	// bytes32 public board;  // remove later
 	uint public fee = 10000000000000000;
 	bool public setup = false;
 	uint public playercount = 0;
-	// bytes32[4] private samGroup;
-	// bytes32 private lastRevived;
-	// bytes32 public merkleRoot;
         address constant public MerkleTreeAddr = 0x127bfc8AFfdCaeee6043e7eC79239542e5A470B7;
 
 	struct playerInfo {
 		// address wallet; // msg.sender
-		uint since;     // block height when joined
+		// uint since;     // block height when joined
+		uint initHeightJoined;
 		bytes32 scoreHash;
 		bool claimed;
 	}
@@ -121,28 +113,26 @@ contract BattleShip {
 	// WinnerOnly
 	function withdraw() public WinnerOnly returns (bool) {
 	        // only one player win eth; make sure winner can claim the reward after next game started
-		require(block.number > initHeightJoined + period_all);
-		// require(block.number < initHeightJoined + period_all + 7);
+		require(block.number > playerDB[msg.sender].initHeightJoined + period_all);
+		// require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7);
 		setup = false;
 		winner = address(0);
-		// board = bytes32(0);
-		// lastRevived = bytes32(0);
-		// samGroup[3] = bytes32(0);
+		board = bytes32(0);
 		playercount = 0;
+		ipfsAddr = '';
 
-		// uint256 reward = uint256(address(this).balance).mul(uint256(6)) / uint256(10);
+		uint256 reward = uint256(address(this).balance).mul(uint256(6)) / uint256(10);
 		// require(RNTInterface(RNTAddr).mint(msg.sender) == true);
-		// require(msg.sender.send(reward) == true);
+		require(msg.sender.send(reward) == true);
 		return true;
 	}
 
-	function claimLotteReward(
-	    // this happens after end of this game, next round may have started, assuming these var haven't reset:
-	    // playerDB, playerClaimedReward,
+	function claimLotteReward( // this happens after end of a game, next round may started
 	    bytes32 secret,
+	    string memory slots,
 	    uint blockNo,
-	    uint256[10] memory submitBlocks,  // the winning blocks the player claimed
-	    uint[10] memory winningTickets, // arrays winningTickets, submitBlocks have same order
+	    uint256[] memory submitBlocks,  // the winning blocks the player claimed
+	    uint[] memory winningTickets, // the idx of generateTickets. same order as submitBlocks
 	    bytes32[] memory proof,
 	    bool[] memory isLeft
 	) public returns (bool) {
@@ -151,9 +141,10 @@ contract BattleShip {
 	        require(proof.length == isLeft.length, "len of proof/isLeft mismatch");
 	        require(winningTickets.length == submitBlocks.length, "submitBlocks and winningTickets mismatch");
 		require(merkleRoot != 0x0, "no merkle root yet");
-		require(block.number > initHeightJoined + period_all, "too early");
-		require(block.number < initHeightJoined + period_all + 7, "too late");
-		require(playerDB[msg.sender].since > initHeightJoined && playerDB[msg.sender].since < initHeightJoined + 10, "wrong round");
+		require(block.number > playerDB[msg.sender].initHeightJoined + period_all, "too early");
+		require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7, "too late");
+		require(playerDB[msg.sender].initHeightJoined == initHeight || 
+		        initHeight - playerDB[msg.sender].initHeightJoined > period_all);  // how to more precise?
 		// require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
 
                 // No second chance: if one of the following verification failed, the player cannot call this function again.
@@ -161,57 +152,46 @@ contract BattleShip {
                 uint i;
 
 	        // verification: the secret belongs to the player
-		bytes32 score = keccak256(abi.encodePacked(secret, blockhash(blockNo)));
+		bytes32 score;
+		bytes32 newscore = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo))); // initialize for the loop below
+		bool[32] memory _slots = convertString32ToBool(slots); 
+                for (i = 0; i <= 31; i++) {
+			if(_slots[i] == false) {
+				assert(score[i] == board[i]);
+			} else {
+				assert(score[i] == newscore[i]);
+			}
+		}
+
 		require(keccak256(abi.encodePacked(score)) == playerDB[msg.sender].scoreHash,
 		        "wrong score base on the given secret/blockNo");
 
-                // verification: winningTickets belongs to the player
-		// bytes32[] memory genTickets = generateTickets(score, initHeightJoined);
-                // bool validTicket;
-		// for (i=0; i<winningTickets.length; i++){
-                        // for (i2=0; i2<genTickets.length; i2++){
-                                // validTicket = false;
-                                // if (winningTickets[i] == genTickets[i2]){
-                                        // validTicket = true;
-                                        // break;
-                                // }
-                        // }
-                        // require(validTicket, "The winning ticket is not yours");
-                // }
-
-                // verification: tickets are in Merkle Tree
-                // for (i=0; i<winningTickets.length; i++){
-                //         require(merkleTreeValidator(proof[i], isLeft[i], keccak256(abi.encodePacked(winningTickets[i])), merkleRoot), 
-                //                 "one or more tickets not in Merkle Tree");
-                // }
-
-                // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0...<10
-                bytes32[21] memory claimHashElements;
-                claimHashElements[0] = bytes32(msg.sender);
+                // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
+		bytes32[10] memory genTickets = generateTickets(score);
+                bytes32[] memory claimHashElements;
+                claimHashElements[0] = bytes20(msg.sender);
                 for (i=0; i<winningTickets.length; i++){
                         claimHashElements[i*2+1] = bytes32(submitBlocks[i]);
-                        claimHashElements[i*2+2] = bytes32(winningTickets[i]);
+                        claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
                 }
-                bytes32 claimHash = keccak256(abi.encodePacked(claimHashElements));
-                require(merkleTreeValidator(proof, isLeft, claimHash, merkleRoot));
+                // bytes32 claimHash = keccak256(abi.encodePacked(claimHashElements));
+                require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)), merkleRoot));
 
-                // count number of winning tickets and verify the ownership
+                // count number of winning tickets
                 bytes32 winNumber;
-		bytes32[10] memory genTickets = generateTickets(score);
                 for (i=0; i<submitBlocks.length; i++){
 	                winNumber = keccak256(abi.encodePacked(prevboard, blockhash(submitBlocks[i])));
-                        // if (winNumber[30] == winningTickets[i][30] && winNumber[31] == winningTickets[i][31]) {
-                        require(winNumber[31] == genTickets[winningTickets[i]][31], "you give a wrong ticket");
+                        // require(winNumber[30] == genTickets[winningTickets[i]][30] && winNumber[31] == genTickets[winningTickets[i]][31])
+                        require(winNumber[31] == genTickets[winningTickets[i]][31], "found a wrong ticket");  // for debug only
 		        // require(RNTInterface(RNTAddr).mint(msg.sender) == true);
                 }
-
 		return true;
         }
 
-        function generateTickets(bytes32 score) public view returns (bytes32[10]){
+        function generateTickets(bytes32 score) public view returns (bytes32[10] memory){
                 bytes32[10] memory tickets;
-                uint ticketSeedBlockNo = initHeightJoined + 10;  // make it global?
-		for (uint i = 0; i <= getNumOfTickets(score); i++) {
+                uint ticketSeedBlockNo = playerDB[msg.sender].initHeightJoined + 10;
+		for (uint i = 0; i < getNumOfTickets(score); i++) {
 		        tickets[i] = keccak256(abi.encodePacked(score, ticketSeedBlockNo, i+1));  // idx of ticket start from 1
                 }
                 return tickets;
@@ -238,23 +218,23 @@ contract BattleShip {
 	// 	return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], samGroup[3], blockhash(block.number - 1)));
 	// }
 
-	function getPlayerInfo(address _addr) public view returns (uint, uint, bytes32) {
-		return (playerDB[_addr].since, initHeight, playerDB[_addr].scoreHash);
+	function getPlayerInfo(address _addr) public view returns (uint, bytes32) {
+		return (playerDB[_addr].initHeightJoined, playerDB[_addr].scoreHash);
 	}
 
 	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {
 		// require(defense > difficulty);
-		playerInfo memory newone;
 
-		newone.since  = block.number;
-		// board = defense;
+		winner = address(0);
+		ipfsAddr = '';
 
 		initHeight = block.number;
+		playerInfo memory newone;
+
+		newone.initHeightJoined = initHeight;
 		playerDB[msg.sender] = newone;
 		playercount += 1;
 		setup = true;
-		// lastRevived = bytes32(0);
-		// samGroup[3] = bytes32(0);
 
 	        prevboard = board;
 	        board = defense;
@@ -264,12 +244,13 @@ contract BattleShip {
 
 	// Join game
 	function challenge(bytes32 scoreHash) public payable feePaid notDefender gameStarted returns (bool) {
-		require(playerDB[msg.sender].since < initHeight);
+		require(playerDB[msg.sender].initHeightJoined < initHeight);
 		require(block.number >= initHeight + 7 && block.number < initHeight + 10);
 		require(playercount + 1 <= maxPlayer);
 
 		playerInfo memory newone;
 		playerDB[msg.sender].claimed == false;
+		playerDB[msg.sender].initHeightJoined = initHeight;
 
 		newone.scoreHash = scoreHash;
 
@@ -399,7 +380,7 @@ contract BattleShip {
                 return MerkleTreeValidatorInterface(MerkleTreeAddr).validate(proof, isLeft, targetLeaf, _merkleRoot);
         }
 
-	function submitMerkleRoot(uint _initHeight, bytes32 _merkleRoot, string _ipfsAddr) external ValidatorOnly returns (bool) {
+	function submitMerkleRoot(uint _initHeight, bytes32 _merkleRoot, string memory _ipfsAddr) public ValidatorOnly returns (bool) {
 		require(block.number >= _initHeight + period_all && block.number < _initHeight + period_all + 3);
 	        merkleRoot = _merkleRoot;
 	        ipfsAddr = _ipfsAddr;
@@ -411,18 +392,18 @@ contract BattleShip {
                 return blockhash(blockNo);
         }
 
-        function convertScoreString(string scoreString) internal pure returns (bool[32]) {
+        function convertString32ToBool(string memory s32) internal pure returns (bool[32] memory) {
                 // i.g., convert string "01001...." to bool[32]: [false, true, false, false, true, ...]
-                bytes memory scoreStr = bytes(scoreString);
-                bool[32] memory score;
-                for (uint i = 0; i < scoreStr.length; i++) {
-                        if(scoreStr[i] == '1') {
-                            score[i] = true;
+                bytes memory s32Bytes = bytes(s32);
+                bool[32] memory result;
+                for (uint i = 0; i < s32Bytes.length; i++) {
+                        if(s32Bytes[i] == '1') {
+                            result[i] = true;
                         } else {
-                            score[i] = false;
+                            result[i] = false;
                         }
                 }
-                return score;
+                return result;
         }
 
         // fallback

@@ -79,15 +79,15 @@ class BattleShip extends BladeIronClient {
 
 				if (this.gameStarted) {
 					this.board = plist[1];
-					this.initHeight = plist[2];
-					this.gamePeriod = plist[3];
+					this.initHeight = Number(plist[2]);
+					this.gamePeriod = Number(plist[3]);
 					this.validator = plist[4];
                         		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
 
 					if (typeof(this.results[this.initHeight]) === 'undefined') this.results[this.initHeight] = [];
 					if (typeof(this.winRecords[this.initHeight]) === 'undefined') { this.winRecords[this.initHeight] = {}; }
 
-					return mkdir_promise(path.join(this.configs.database, this.initHeight)).then((r) => { 
+					return mkdir_promise(path.join(this.configs.database, String(this.initHeight))).then((r) => { 
 						return this.gameStarted;
 					})
 				}
@@ -304,10 +304,11 @@ class BattleShip extends BladeIronClient {
 
 		this.trial = (stats) => 
 		{
+			console.dir(stats);
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 5) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
-			if ( stats.blockHeight == this.initHeight + 8 
+			if ( stats.blockHeight >= this.initHeight + 8 
 			  || ( stats.blockHeight >= this.initHeight + 6 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) 
 			){
 				this.stopTrial();
@@ -335,6 +336,7 @@ class BattleShip extends BladeIronClient {
 							}
 						   })
 				} else {
+					console.log(`Too late or not managed to calculate score to participate this round...`);
 					return;
 				}
 			}
@@ -571,7 +573,7 @@ class BattleShip extends BladeIronClient {
 			{
 				fs.writeFile(path.join(this.configs.database, blkObj.initHeight, 'blockBlob'), blkObj, (err) => {
 					if (err) return reject(err);
-					resolve(path.join(this.configs.database, blkObj.initHeight, 'blockBlob'));
+					resolve(path.join(this.configs.database, String(blkObj.initHeight), 'blockBlob'));
 				})
 			}
 
@@ -590,7 +592,7 @@ class BattleShip extends BladeIronClient {
 			return this.ipfsRead(ipfsHash).then((blockBuffer) => {
 				let blockJSON = JSON.parse(blockBuffer.toString());
 
-				if (blockJSON.initHeight != this.initHeight) {
+				if (Number(blockJSON.initHeight) !== this.initHeight) {
 					console.log(`Oh No! Did not get IPFS data for ${this.initHeight}, got data for round ${blockJSON.initHeight} instead`);
 					return [];
 				}

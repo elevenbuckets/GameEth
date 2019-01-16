@@ -264,7 +264,7 @@ contract BattleShip {
 	function testOutcome(bytes32 secret, uint blockNo) public gameStarted view returns (bytes32 _board, bool[32] memory _slots) {
 		require(block.number > initHeight + 7 && block.number <= initHeight + 10, 'testoutcome: 1');
 		require(block.number - blockNo < 7, 'testoutcome: 2');
-		require(blockNo <= block.number - 1 && blockNo > initHeight + 7 && blockNo <= initHeight + 10, 'testoutcome: 3');
+		require(blockNo <= block.number - 1 && blockNo >= initHeight + 7 && blockNo < initHeight + 10, 'testoutcome: 3');
 
 		_board = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo)));
 

@@ -191,16 +191,17 @@ class BattleShip extends BladeIronClient {
 			if ( stats.blockHeight <= this.initHeight + 8 ) {
 				return Promise.resolve(false);
 			} else if ( 
-			        stats.blokHeight > this.initHeight + 8 + 20
+			        stats.blokHeight > this.initHeight + this.gamePeriod
 			) {
 				this.stopTrial();
 			        if (this.results[this.initHeight].length > 0) {
 					console.log(`Address ${this.userWallet} won ${this.results[this.initHeight].length} times! Awaiting Merkle root to withdraw prize...`);
 					this.client.subscribe('ethstats');
 					this.client.on('ethstats', this.checkMerkle);
-
-					return Promise.resolve(false);
+				} else {
+					console.log(`Thank you for playing ${this.ctrName}. Hope you will get some luck next time!!!`);
 				}
+				return Promise.resolve(false);
 			} else if (
 			 	stats.blockHeight > this.initHeight + 8 
 			     && Object.keys(this.gameANS[this.initHeight].tickets).length != 0

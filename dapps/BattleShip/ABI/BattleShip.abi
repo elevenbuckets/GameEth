@@ -2,25 +2,11 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "period2",
+    "name": "ipfsAddr",
     "outputs": [
       {
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "difficulty",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32"
+        "type": "string"
       }
     ],
     "payable": false,
@@ -49,34 +35,6 @@
       {
         "name": "",
         "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "period1",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "lastActivity",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
       }
     ],
     "payable": false,
@@ -184,11 +142,11 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "period3",
+    "name": "setup",
     "outputs": [
       {
         "name": "",
-        "type": "uint256"
+        "type": "bool"
       }
     ],
     "payable": false,
@@ -198,11 +156,11 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "setup",
+    "name": "prevboard",
     "outputs": [
       {
         "name": "",
-        "type": "bool"
+        "type": "bytes32"
       }
     ],
     "payable": false,
@@ -268,14 +226,96 @@
     "type": "function"
   },
   {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "secret",
+        "type": "bytes32"
+      },
+      {
+        "name": "slots",
+        "type": "string"
+      },
+      {
+        "name": "blockNo",
+        "type": "uint256"
+      },
+      {
+        "name": "submitBlocks",
+        "type": "uint256[]"
+      },
+      {
+        "name": "winningTickets",
+        "type": "uint256[]"
+      },
+      {
+        "name": "proof",
+        "type": "bytes32[]"
+      },
+      {
+        "name": "isLeft",
+        "type": "bool[]"
+      }
+    ],
+    "name": "claimLotteReward",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "constant": true,
-    "inputs": [],
-    "name": "getPlayerInfo",
+    "inputs": [
+      {
+        "name": "score",
+        "type": "bytes32"
+      }
+    ],
+    "name": "generateTickets",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32[10]"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "score",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getNumOfTickets",
     "outputs": [
       {
         "name": "",
         "type": "uint256"
-      },
+      }
+    ],
+    "payable": false,
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "getPlayerInfo",
+    "outputs": [
       {
         "name": "",
         "type": "uint256"
@@ -393,7 +433,7 @@
         "type": "bytes32"
       }
     ],
-    "name": "MerkleTreeValidator",
+    "name": "merkleTreeValidator",
     "outputs": [
       {
         "name": "",
@@ -408,8 +448,16 @@
     "constant": false,
     "inputs": [
       {
+        "name": "_initHeight",
+        "type": "uint256"
+      },
+      {
         "name": "_merkleRoot",
         "type": "bytes32"
+      },
+      {
+        "name": "_ipfsAddr",
+        "type": "string"
       }
     ],
     "name": "submitMerkleRoot",

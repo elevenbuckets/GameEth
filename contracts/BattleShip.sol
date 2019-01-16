@@ -120,7 +120,6 @@ contract BattleShip {
 		winner = address(0);
 		board = bytes32(0);
 		playercount = 0;
-		ipfsAddr = '';
 
 		uint256 reward = uint256(address(this).balance).mul(uint256(6)) / uint256(10);
 		// require(RNTInterface(RNTAddr).mint(msg.sender) == true);
@@ -228,7 +227,6 @@ contract BattleShip {
 		// require(defense > difficulty);
 
 		winner = address(0);
-		ipfsAddr = '';
 
 		initHeight = block.number;
 		playerInfo memory newone;
@@ -318,6 +316,10 @@ contract BattleShip {
         // fallback
         function () defenderOnly gameStalled external { 
             winner = defender; 
-            require(withdraw());
+            // require(withdraw());
+            setup = false;
+            board = bytes32(0);
+            playercount = 0;
+	    require(msg.sender.send(address(this).balance) == true);
         }
 }

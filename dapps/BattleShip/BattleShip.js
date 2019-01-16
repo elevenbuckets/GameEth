@@ -14,10 +14,10 @@ const fields =
 [
    {name: 'nonce', length: 32, allowLess: true, default: new Buffer([]) },
 //   {name: 'validatorAddress', length: 20, allowZero: false, default: new Buffer([]) },
-   {name: 'originAddress', length: 20, allowZero: false, default: new Buffer([]) },
+   {name: 'originAddress', length: 20, allowZero: true, default: new Buffer([]) },
    {name: 'submitBlock', length: 32, allowLess: true, default: new Buffer([]) },
-   {name: 'ticket', length: 32, allowLess: false, default: new Buffer([]) },
-   {name: 'payload', length: 32, allowLess: false, default: new Buffer([]) },
+   {name: 'ticket', length: 32, allowLess: true, default: new Buffer([]) },
+   {name: 'payload', length: 32, allowLess: true, default: new Buffer([]) },
    {name: 'v', allowZero: true, default: new Buffer([0x1c]) },
    {name: 'r', allowZero: true, length: 32, default: new Buffer([]) },
    {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
@@ -266,7 +266,7 @@ class BattleShip extends BladeIronClient {
 								this.bestANS.secret,
 								this.bestANS.slots.map((s) => { return s ? 1 : 0 }).join(''),
 								this.bestANS.blockNo,
-								stats.blockHeight,
+								stats.blockHeight - 1,
 								ticket
 							])
 
@@ -280,7 +280,7 @@ class BattleShip extends BladeIronClient {
 									secret: this.bestANS.secret,
 									slots: this.bestANS.slots.map((s) => { return s ? 1 : 0 }).join(''),
 									blockNo: this.bestANS.blockNo,
-									submitBlock: stats.blockHeight,
+									submitBlock: stats.blockHeight - 1,
 									ticket,
 									...signature
 								});
@@ -289,12 +289,13 @@ class BattleShip extends BladeIronClient {
 								let params = {
 									nonce,
 									originAddress: this.userWallet, 
-									submitBlock: stats.blockHeight,
+									submitBlock: stats.blockHeight - 1,
 									ticket,
 									payload: ethUtils.bufferToHex(tickethash) 
 								};
 
-                        					ethUtils.defineProperties(m, fields, {...params, ...signature}); console.dir({...params, ...signature});
+								console.dir({...params, ...signature});
+                        					ethUtils.defineProperties(m, fields, {...params, ...signature}); 
 								return this.ipfs_pubsub_publish(this.channelName, m.serialize());
 							})
 							.catch((err) => { console.trace(err); });

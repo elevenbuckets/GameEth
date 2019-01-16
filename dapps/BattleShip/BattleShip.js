@@ -315,7 +315,7 @@ class BattleShip extends BladeIronClient {
 			if (!this.gameStarted) return;
 			if (stats.blockHeight <= this.initHeight + 7) return;
 			if ( stats.blockHeight >= this.initHeight + 10 
-			  || ( stats.blockHeight > this.initHeight + 7 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 2) 
+			  || ( stats.blockHeight > this.initHeight + 7 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) 
 			){
 				this.stopTrial();
 
@@ -347,13 +347,13 @@ class BattleShip extends BladeIronClient {
 				}
 			}
 			if (typeof(this.setAtBlock) === 'undefined') {
-				this.setAtBlock = stats.blockHeight;
+				this.setAtBlock = Number(stats.blockHeight);
 				console.log(`Start calculating score at ${this.setAtBlock}`);
 			}
 
 			console.log('New Stats'); console.dir(stats);
 
-			let blockNo = stats.blockHeight - 1; console.log(blockNo);
+			let blockNo = stats.blockHeight - 1; console.log(`BlockNo: ${blockNo}`);
 			let localANS = []; let best; 
 			let trialNonce = '0x' + parseInt(Math.random() * 1000, 16); 
 			this.secretBank.map((s,idx) => 
@@ -389,6 +389,7 @@ class BattleShip extends BladeIronClient {
 						this.blockBest[blockNo] = best;
 					}
 				})
+				.catch((err) => { console.log(`Test Outcome`);  console.trace(err); })
 			})
 		}
 
@@ -399,7 +400,7 @@ class BattleShip extends BladeIronClient {
 			console.log('Trial stopped !!!');
 		}
 
-		this.startTrial = (tryMore = 1000) => 
+		this.startTrial = (tryMore = 1183) => 
 		{
                         if (tryMore > 0) { 
 				if (tryMore > 2000) tryMore = 2000;

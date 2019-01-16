@@ -528,7 +528,7 @@ class BattleShip extends BladeIronClient {
 				});
 			})
 
-			let claimset = abi.encodeParameters(fmtArray, pkgArray);
+			let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
 
 			return ethUtils.bufferToHex(ethUtils.keccak256(claimset));
 		}
@@ -545,7 +545,7 @@ class BattleShip extends BladeIronClient {
 				pkgArray.push(ethUtils.bufferToHex(txObj.ticket)); fmtArray.push('bytes32');
 			});
 
-			let claimset = abi.encodeParameters(fmtArray, pkgArray);
+			let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
 
 			return ethUtils.bufferToHex(ethUtils.keccak256(claimset));
 		}

@@ -91,7 +91,8 @@ contract BattleShip {
 	}
 
 	modifier gameStalled() {
-		require(setup == true && block.number > initHeight + period_all && winner == address(0));
+		// require(setup == true && block.number > initHeight + period_all && winner == address(0));
+		require(setup == true && block.number > initHeight + 10 && winner == address(0));
 		_;
 	}
 

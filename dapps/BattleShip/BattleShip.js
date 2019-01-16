@@ -85,6 +85,7 @@ class BattleShip extends BladeIronClient {
                         		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
 					
 					// Reset
+					this.setAtBlock = undefined;
 					this.myClaims = {};
 					this.blockBest = {};
 					this.bestANS = null;
@@ -310,11 +311,11 @@ class BattleShip extends BladeIronClient {
 
 		this.trial = (stats) => 
 		{
+			console.log("\n"); console.dir(stats);
 			if (!this.gameStarted) return;
-			if (stats.blockHeight < this.initHeight + 7) return;
-			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
+			if (stats.blockHeight <= this.initHeight + 7) return;
 			if ( stats.blockHeight >= this.initHeight + 10 
-			  || ( stats.blockHeight >= this.initHeight + 7 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) 
+			  || ( stats.blockHeight > this.initHeight + 7 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 2) 
 			){
 				this.stopTrial();
 
@@ -344,6 +345,10 @@ class BattleShip extends BladeIronClient {
 					console.log(`Too late or not managed to calculate score to participate this round...`);
 					return;
 				}
+			}
+			if (typeof(this.setAtBlock) === 'undefined') {
+				this.setAtBlock = stats.blockHeight;
+				console.log(`Start calculating score at ${this.setAtBlock}`);
 			}
 
 			console.log('New Stats'); console.dir(stats);
@@ -407,6 +412,7 @@ class BattleShip extends BladeIronClient {
 					console.log('Game started !!!');
 					this.client.subscribe('ethstats');
 					if (this.userWallet === this.validator) {
+						console.log('Welcome, Validator!!!');
 						this.subscribeChannel('validator');
 						this.client.on('ethstats', this.verify);
 					} else {

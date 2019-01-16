@@ -186,7 +186,7 @@ class BattleShip extends BladeIronClient {
 			})
 		}
 
-		this.calcTickets = () => 
+		this.calcTickets = (stats) => 
 		{
 			if ( stats.blockHeight <= this.initHeight + 8 ) {
 				return Promise.resolve(false);
@@ -241,7 +241,7 @@ class BattleShip extends BladeIronClient {
 
 		this.newDraws = (stats) => 
 		{
-			this.calcTickets().then((rc) => {
+			this.calcTickets(stats).then((rc) => {
 				if (!rc) return false;
 				this.call(this.ctrName)('winningNumber')(stats.blockHeight).then((raffle) => {
 					Object.values(this.gameANS[this.initHeight].tickets).map((ticket) => {

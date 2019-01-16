@@ -249,7 +249,7 @@ class BattleShip extends BladeIronClient {
 		{
 			this.calcTickets(stats).then((rc) => {
 				if (!rc) return false;
-				this.call(this.ctrName)('winningNumber')(stats.blockHeight).then((raffle) => {
+				this.call(this.ctrName)('winningNumber')(stats.blockHeight - 1).then((raffle) => {
 					Object.values(this.gameANS[this.initHeight].tickets).map((ticket) => {
 						if (raffle.substr(65) === ticket.substr(65)) { // compare to determine if winning
 							console.log(`One winning ticket found!`);

@@ -144,7 +144,7 @@ contract BattleShip {
 		require(block.number > playerDB[msg.sender].initHeightJoined + period_all, "too early");
 		require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7, "too late");
 		require(playerDB[msg.sender].initHeightJoined == initHeight || 
-		        initHeight - playerDB[msg.sender].initHeightJoined > period_all);  // how to more precise?
+		        initHeight - playerDB[msg.sender].initHeightJoined > period_all, "wrong game");  // how to more precise?
 		// require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
 
                 // No second chance: if one of the following verification failed, the player cannot call this function again.
@@ -189,6 +189,7 @@ contract BattleShip {
         }
 
         function generateTickets(bytes32 score) public view returns (bytes32[10] memory){
+                require(score != '0x0');
                 bytes32[10] memory tickets;
                 uint ticketSeedBlockNo = playerDB[msg.sender].initHeightJoined + 10;
 		for (uint i = 0; i < getNumOfTickets(score); i++) {
@@ -244,9 +245,9 @@ contract BattleShip {
 
 	// Join game
 	function challenge(bytes32 scoreHash) public payable feePaid notDefender gameStarted returns (bool) {
-		require(playerDB[msg.sender].initHeightJoined < initHeight);
-		require(block.number >= initHeight + 7 && block.number < initHeight + 10);
-		require(playercount + 1 <= maxPlayer);
+		require(playerDB[msg.sender].initHeightJoined < initHeight, "challange: 1");
+		require(block.number > initHeight + 7 && block.number <= initHeight + 10, "challange: 2");
+		require(playercount + 1 <= maxPlayer, "challange: 3");
 
 		playerInfo memory newone;
 		playerDB[msg.sender].claimed == false;
@@ -261,9 +262,9 @@ contract BattleShip {
 	}
 
 	function testOutcome(bytes32 secret, uint blockNo) public gameStarted view returns (bytes32 _board, bool[32] memory _slots) {
-		require(block.number < initHeight + 7 && block.number >= initHeight);
-		require(block.number - blockNo < 7);
-		require(blockNo <= block.number - 1 && blockNo < initHeight + 7 && blockNo >= initHeight);
+		require(block.number < initHeight + 7 && block.number >= initHeight, 'testoutcome: 1');
+		require(block.number - blockNo < 7, 'testoutcome: 2');
+		require(blockNo <= block.number - 1 && blockNo < initHeight + 7 && blockNo >= initHeight, 'testoutcome: 3');
 
 		_board = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo)));
 

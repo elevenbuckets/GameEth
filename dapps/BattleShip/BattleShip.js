@@ -311,10 +311,10 @@ class BattleShip extends BladeIronClient {
 		this.trial = (stats) => 
 		{
 			if (!this.gameStarted) return;
-			if (stats.blockHeight < this.initHeight + 5) return;
+			if (stats.blockHeight < this.initHeight + 7) return;
 			if (typeof(this.setAtBlock) === 'undefined') this.setAtBlock = stats.blockHeight;
-			if ( stats.blockHeight >= this.initHeight + 8 
-			  || ( stats.blockHeight >= this.initHeight + 6 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) 
+			if ( stats.blockHeight >= this.initHeight + 10 
+			  || ( stats.blockHeight >= this.initHeight + 7 && typeof(this.setAtBlock) !== 'undefined' && stats.blockHeight >= this.setAtBlock + 1) 
 			){
 				this.stopTrial();
 
@@ -407,6 +407,7 @@ class BattleShip extends BladeIronClient {
 					console.log('Game started !!!');
 					this.client.subscribe('ethstats');
 					if (this.userWallet === this.validator) {
+						this.subscribeChannel('validator');
 						this.client.on('ethstats', this.verify);
 					} else {
 						this.client.on('ethstats', this.trial);

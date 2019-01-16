@@ -209,13 +209,18 @@ class BattleShip extends BladeIronClient {
 			} else {
 				return this.call(this.ctrName)('getBlockhash')(Number(this.initHeight) + 8).then( (blockhash) => {
 					// check how many tickets earned
-					let initials = this.toBigNumber(this.toHex(this.gameANS[this.initHeight].score.substr(2,7)));
+					let initials = this.toBigNumber(this.gameANS[this.initHeight].score.substr(0,7));
 					let total = 1;
 		
-					if (initials.eq(0)) total = 5;
-					if (initials.lt(16)) total = 4;
-					if (initials.lt(256)) total = 3;
-					if (initials.lt(4096)) total = 2;
+					if (initials.eq(0)) {
+						total = 5;
+					} else if (initials.lt(16)) {
+						total = 4;
+					} else if (initials.lt(256)) {
+						total = 3;
+					} else if (initials.lt(4096)) {
+						total = 2;
+					}
 		
 					for (let i = 1; i <= total; i++) {
 						let packed = this.abi.encodeParameters(
@@ -232,6 +237,7 @@ class BattleShip extends BladeIronClient {
 		
 						// calculating tickets
 						this.gameANS[this.initHeight].tickets[i] = ethUtils.bufferToHex(ethUtils.keccak256(packed));
+						console.log(`Ticket ${i}: ${this.gameANS[this.initHeight].tickets[i]}`);
 					}
 					
 					return true;
@@ -246,6 +252,7 @@ class BattleShip extends BladeIronClient {
 				this.call(this.ctrName)('winningNumber')(stats.blockHeight).then((raffle) => {
 					Object.values(this.gameANS[this.initHeight].tickets).map((ticket) => {
 						if (raffle.substr(65) === ticket.substr(65)) { // compare to determine if winning
+							console.log(`One winning ticket found!`);
 							let data = this.abi.encodeParameters(
 							[
 								'bytes32',
@@ -286,7 +293,7 @@ class BattleShip extends BladeIronClient {
 									payload: ethUtils.bufferToHex(tickethash) 
 								};
 
-                        					ethUtils.defineProperties(m, fields, {...params, ...signature});
+                        					ethUtils.defineProperties(m, fields, {...params, ...signature}); console.dir({...params, ...signature});
 								return this.ipfs_pubsub_publish(this.channelName, m.serialize());
 							})
 							.catch((err) => { console.trace(err); });
@@ -472,6 +479,7 @@ class BattleShip extends BladeIronClient {
 					// verify signature before checking nonce of the signed address
 					if (verifySignature(sigout)) {
 						// store tx in mem pool for IPFS publish
+						console.log(`Received winning claim from ${address} ...`); console.dir(data);
 						this.winRecords[this.initHeight][address].push(data);
 					}
 				})

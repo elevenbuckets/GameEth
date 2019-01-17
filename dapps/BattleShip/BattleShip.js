@@ -652,7 +652,10 @@ class BattleShip extends BladeIronClient {
 					console.log(`Oh No! Did not get IPFS data for ${this.initHeight}, got data for round ${blockJSON.initHeight} instead`);
 					return [];
 				}
-				let leaves = Object.keys(blockJSON.data);
+
+				let leaves = [];
+				Object.values(blockJSON.data).map((obj) => { return leaves = [ ...leaves, ...Object.keys(obj) ]; });
+
 				return leaves;
 			})
 		}
@@ -664,10 +667,8 @@ class BattleShip extends BladeIronClient {
 	                        merkleTree.addLeaves(leaves); 
 	                        merkleTree.makeTree();
 	
-	                        if (merkleTree.isReady) {
-	                                let txIdx = merkleTree.leaves.findIndex( (x) => { Buffer.compare(x, targetLeaf) == 0 } );
-	                                if (txIdx == -1) return false;
-	                        }
+                                let txIdx = merkleTree.leaves.findIndex( (x) => { Buffer.compare(x, targetLeaf) == 0 } );
+                                if (txIdx == -1) return false;
 	
 	                        let proofArr = merkleTree.getProof(txIdx, true);
 	                        let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});

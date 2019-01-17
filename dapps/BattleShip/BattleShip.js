@@ -471,7 +471,7 @@ class BattleShip extends BladeIronClient {
 					return; // discard
 				}
 	
-				if ( !(v in data) || !(r in data) || !(s in data) ) return;
+				if ( !('v' in data) || !('r' in data) || !('s' in data) ) return;
 	
 				let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
 	
@@ -573,11 +573,13 @@ class BattleShip extends BladeIronClient {
 			// Currently, we will group all block data into single JSON and publish it on IPFS
 			let blkObj =  {initHeight: this.initHeight, data: {} };
                 	let merkleTree = new MerkleTree();
+			let leaves = [];
 
-			let leaves = Object.keys(this.winRecords[blkObj.initHeight]).map((addr) => {
+			Object.keys(this.winRecords[blkObj.initHeight]).map((addr) => {
+				if (this.winRecords[blkObj.initHeight][addr].length === 0) return;
 				let claimhash = this.calcClaimHash(addr);
 				blkObj.data[addr] = {[claimhash]: this.winRecords[blkObj.initHeight][addr]};
-				return claimhash;
+				leaves.push(claimhash);
 			})
 
                         merkleTree.addLeaves(leaves); 

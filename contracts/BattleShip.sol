@@ -229,10 +229,8 @@ contract BattleShip {
 		winner = address(0);
 
 		initHeight = block.number;
-		playerInfo memory newone;
 
-		newone.initHeightJoined = initHeight;
-		playerDB[msg.sender] = newone;
+		playerDB[msg.sender].initHeightJoined = initHeight;
 		playercount += 1;
 		setup = true;
 
@@ -248,13 +246,11 @@ contract BattleShip {
 		require(block.number > initHeight + 7 && block.number <= initHeight + 10, "challange: 2");
 		require(playercount + 1 <= maxPlayer, "challange: 3");
 
-		playerInfo memory newone;
+		// playerInfo memory newone;
 		playerDB[msg.sender].claimed == false;
 		playerDB[msg.sender].initHeightJoined = initHeight;
+		playerDB[msg.sender].scoreHash = scoreHash;
 
-		newone.scoreHash = scoreHash;
-
-		playerDB[msg.sender] = newone;
 		playercount += 1;
 
 		return true;

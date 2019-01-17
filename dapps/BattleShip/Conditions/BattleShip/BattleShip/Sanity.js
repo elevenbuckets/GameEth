@@ -25,5 +25,10 @@ module.exports =
 	BattleShip_claimLotteReward_sanity(addr, jobObj)
 	{
 		return true;
+	},
+
+	BattleShip_submitMerkleRoot_sanity(addr, jobObj)
+	{
+		return true;
 	}
 }

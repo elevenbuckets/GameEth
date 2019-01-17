@@ -162,7 +162,7 @@ class BattleShip extends BladeIronClient {
 								this.myClaims.isLeft
 							];
 
-							return this.sendTk(this.ctrName)('claimLotteReward')(...args)
+							return this.sendTk(this.ctrName)('claimLotteReward')(...args)()
 								   .then((qid) => { return this.getReceipts(qid); })
 								   .then((rx) => { 
 								   	let tx = rx[0];

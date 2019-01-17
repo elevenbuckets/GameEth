@@ -246,7 +246,6 @@ contract BattleShip {
 		require(block.number > initHeight + 7 && block.number <= initHeight + 10, "challange: 2");
 		require(playercount + 1 <= maxPlayer, "challange: 3");
 
-		// playerInfo memory newone;
 		playerDB[msg.sender].claimed == false;
 		playerDB[msg.sender].initHeightJoined = initHeight;
 		playerDB[msg.sender].scoreHash = scoreHash;
@@ -307,6 +306,12 @@ contract BattleShip {
                         }
                 }
                 return result;
+        }
+
+        function newValidator(address _newValidator) public defenderOnly returns (bool){
+                require(_newValidator != address(0));
+                validator = _newValidator;
+                return true;
         }
 
         // fallback

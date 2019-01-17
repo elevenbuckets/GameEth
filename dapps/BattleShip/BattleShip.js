@@ -620,14 +620,14 @@ class BattleShip extends BladeIronClient {
 		{
 			const __genBlockBlob = (blkObj) => (resolve, reject) => 
 			{
-				fs.writeFile(path.join(this.configs.database, String(blkObj.initHeight), 'blockBlob'), blkObj, (err) => {
+				fs.writeFile(path.join(this.configs.database, String(blkObj.initHeight), 'blockBlob'), JSON.stringify(blkObj), (err) => {
 					if (err) return reject(err);
 					resolve(path.join(this.configs.database, String(blkObj.initHeight), 'blockBlob'));
 				})
 			}
 
 			let stage = new Promise(__genBlockBlob(blkObj));
-			stage = stage.then((blockBlobPath) => { return this.client.ipfsPut(blockBlobPath) } )
+			stage = stage.then((blockBlobPath) => { return this.ipfsPut(blockBlobPath) } )
 				     .catch((err) => { console.trace(err); });
 
 			return stage;

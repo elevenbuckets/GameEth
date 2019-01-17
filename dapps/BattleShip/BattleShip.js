@@ -571,9 +571,15 @@ class BattleShip extends BladeIronClient {
 				});
 			})
 
-			let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
+			console.log('DEBUG: Claim Data Structure (fmtArray, pkgArray):');
+			console.dir(fmtArray); console.dir(pkgArray);
 
-			return ethUtils.bufferToHex(ethUtils.keccak256(claimset));
+			let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
+			let claimhash = ethUtils.bufferToHex(ethUtils.keccak256(claimset));
+
+			console.log(`ClaimHash: ${claimhash}`);
+
+			return claimhash;
 		}
 
 		this.calcClaimHash = (address) => 
@@ -588,9 +594,15 @@ class BattleShip extends BladeIronClient {
 				pkgArray.push(ethUtils.bufferToHex(txObj.ticket)); fmtArray.push('bytes32');
 			});
 
-			let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
+			console.log('DEBUG: Claim Data Structure (fmtArray, pkgArray):');
+			console.dir(fmtArray); console.dir(pkgArray);
 
-			return ethUtils.bufferToHex(ethUtils.keccak256(claimset));
+			let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
+			let claimhash = ethUtils.bufferToHex(ethUtils.keccak256(claimset));
+
+			console.log(`ClaimHash (address: ${address}): ${claimhash}`);
+
+			return claimhash;
 		}
 
                 // Perhaps user sign-in should be entirely off-chain, i.e., no playerDB in contract. 
@@ -678,7 +690,12 @@ class BattleShip extends BladeIronClient {
 
 				let __leafBuffer = Buffer.from(targetLeaf.slice(2), 'hex');
                                 let txIdx = merkleTree.tree.leaves.findIndex( (x) => { return Buffer.compare(x, __leafBuffer) == 0 } );
-                                if (txIdx == -1) return false;
+                                if (txIdx == -1) {
+					console.log('Cannot find leave in tree!');
+					return false;
+				} else {
+					console.log(`Found leave in tree! Index: ${txIdx}`);
+				}
 	
 	                        let proofArr = merkleTree.getProof(txIdx, true);
 	                        let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});
@@ -688,7 +705,11 @@ class BattleShip extends BladeIronClient {
 	                        let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
 	
 	                        return this.call(this.ctrName)('merkleTreeValidator')(proof, isLeft, targetLeaf, merkleRoot).then((rc) => {
-					if (rc) this.myClaims = { ...this.myClaims, proof, isLeft };
+					if (rc) {
+						this.myClaims = { ...this.myClaims, proof, isLeft };
+					} else {
+						console.log('Warning! On-chain merkle validation will FAIL!!!');
+					}
 					return rc;
 				})
 			})

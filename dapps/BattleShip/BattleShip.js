@@ -191,7 +191,7 @@ class BattleShip extends BladeIronClient {
 			if ( stats.blockHeight <= this.initHeight + 8 ) {
 				return Promise.resolve(false);
 			} else if ( 
-			        stats.blockHeight > this.initHeight + this.gamePeriod
+			        stats.blockHeight >= this.initHeight + this.gamePeriod
 			) {
 				this.stopTrial();
 			        if (this.results[this.initHeight].length > 0) {
@@ -330,7 +330,7 @@ class BattleShip extends BladeIronClient {
 		{
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 8) return;
-			if (stats.blockHeight >= this.initHeight + this.gamePeriod) {
+			if (stats.blockHeight > this.initHeight + this.gamePeriod) {
 				this.stopTrial();
 				//this.ipfs_pubsub_publish(this.channelName, Buffer.from(rc.hash));
 				// Instead of broadcasting IPFS hash on pubsub, we simply write it into smart contract! 
@@ -605,7 +605,7 @@ class BattleShip extends BladeIronClient {
 
                         merkleTree.addLeaves(leaves); 
                         merkleTree.makeTree();
-                        merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
+                        let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
 
 			let stage = this.generateBlock(blkObj);
 			stage = stage.then((rc) => {

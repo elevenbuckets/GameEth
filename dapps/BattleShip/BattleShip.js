@@ -567,7 +567,7 @@ class BattleShip extends BladeIronClient {
 					pkgArray.push(__submitBlock); fmtArray.push('uint');
 					pkgArray.push(__ticket); fmtArray.push('bytes32');
 					this.myClaims.submitBlocks.push(__submitBlock);
-					this.myClaims.winnerTickets.push(tlist.indexOf(__ticket));
+					this.myClaims.winningTickets.push(tlist.indexOf(__ticket));
 				});
 			})
 
@@ -675,8 +675,9 @@ class BattleShip extends BladeIronClient {
 	                	let merkleTree = new MerkleTree();
 	                        merkleTree.addLeaves(leaves); 
 	                        merkleTree.makeTree();
-	
-                                let txIdx = merkleTree.leaves.findIndex( (x) => { Buffer.compare(x, targetLeaf) == 0 } );
+
+				let __leafBuffer = Buffer.from(targetLeaf.slice(2), 'hex');
+                                let txIdx = merkleTree.tree.leaves.findIndex( (x) => { return Buffer.compare(x, __leafBuffer) == 0 } );
                                 if (txIdx == -1) return false;
 	
 	                        let proofArr = merkleTree.getProof(txIdx, true);

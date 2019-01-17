@@ -489,5 +489,24 @@
     "payable": false,
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newValidator",
+        "type": "address"
+      }
+    ],
+    "name": "newValidator",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
   }
 ]

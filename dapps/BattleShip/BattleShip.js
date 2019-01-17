@@ -136,12 +136,12 @@ class BattleShip extends BladeIronClient {
 
 		this.checkMerkle = (stats) => 
 		{
-			let p = ['merkleRoot', 'ipfsAddr'].map((c) => { return this.call(this.ctrName)(c)() });
-			Promise.all(p).then((plist) => {
+			this.call(this.ctrName)('getBlockInfo')(this.initHeight)
+			    .then((plist) => {
 				let mr = plist[0]; // block merkle root
 				let bd = plist[1]; // IPFS hash of block
 
-				if (mr !== '0x0' && bd != '' && this.results[this.initHeight].length > 0) 
+				if (mr !== '0x0' && bd !== '' && this.results[this.initHeight].length > 0) 
 				{
 					this.stopTrial();
 					// double check all submitted winning tickets are included
@@ -181,11 +181,18 @@ class BattleShip extends BladeIronClient {
 								   })
 								   .catch((err) => { console.trace(err); return; });
 						} else {
-							console.log(`Merkle Proof Process FAILED!!!!!!`);
+							console.log('Merkle Proof Process FAILED!!!!!!'); 
+							console.dir(this.results);
+							console.dir(this.myClaims);
+							console.log(`MerkleRoot: ${mr}`);
+							console.log(`BlockData (IPFS): ${bd}`);
+							console.log(`ClaimHash: ${myClaimHash}`);
+							// TODO: What now?
 						}
 					})
 				}
 			})
+			.catch((err) => { console.log('ERROR in checkMerkle'); console.trace(err); });
 		}
 
 		this.calcTickets = (stats) => 

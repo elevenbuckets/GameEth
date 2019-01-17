@@ -307,7 +307,7 @@ class BattleShip extends BladeIronClient {
 
 								let sigout = {
 									chkhash: d.payload, 
-									v: d.v, r: d.r, s: d.s, 
+									v: ethUtils.bufferToInt(d.v), r: d.r, s: d.s, 
 									originAddress: d.originAddress, 
 									netID: this.configs.networkID
 								};

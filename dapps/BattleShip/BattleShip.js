@@ -610,7 +610,8 @@ class BattleShip extends BladeIronClient {
 
 			let stage = this.generateBlock(blkObj);
 			stage = stage.then((rc) => {
-	                	return this.sendTk(this.ctrName)('submitMerkleRoot')(blkObj.initHeight, merkleRoot, rc.hash);
+				console.log('IPFS Put Results'); console.dir(rc);
+	                	return this.sendTk(this.ctrName)('submitMerkleRoot')(blkObj.initHeight, merkleRoot, rc.hash)();
 			})
 			.catch((err) => { console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); });
 			

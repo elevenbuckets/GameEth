@@ -312,7 +312,7 @@ class BattleShip extends BladeIronClient {
 		{
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 8) return;
-			if (stats.blockHeight >= this.initHeight + 8 + 20) {
+			if (stats.blockHeight >= this.initHeight + this.gamePeriod) {
 				this.stopTrial();
 				//this.ipfs_pubsub_publish(this.channelName, Buffer.from(rc.hash));
 				// Instead of broadcasting IPFS hash on pubsub, we simply write it into smart contract! 
@@ -464,7 +464,7 @@ class BattleShip extends BladeIronClient {
 			return this.call(this.ctrName)('getPlayerInfo')(address).then((results) => 
 			{
 				let since = results[0];
-				let scoreHash = results[2];
+				let scoreHash = results[1];
 
 				if (scoreHash === '0x0' || since < this.initHeight) {
 					console.log(`DEBUG: Address ${address} did not participate in this round`)
@@ -484,7 +484,7 @@ class BattleShip extends BladeIronClient {
 					// verify signature before checking nonce of the signed address
 					if (verifySignature(sigout)) {
 						// store tx in mem pool for IPFS publish
-						console.log(`Received winning claim from ${address} ...`); console.dir(data);
+						console.log(`---> Received winning claim from ${address} ...`); console.dir(data);
 						this.winRecords[this.initHeight][address].push(data);
 					}
 				})

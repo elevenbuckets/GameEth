@@ -471,14 +471,14 @@ class BattleShip extends BladeIronClient {
 					return; // discard
 				}
 	
-				if ( !('v' in data) || !('r' in data) || !('s' in data) ) return;
+				if ( !('v' in data) || !('r' in data) || !('s' in data) ) return; console.dir(data);
 	
 				let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
 	
 				this.call(this.ctrName)('winningNumber')(ethUtils.bufferToInt(data.submitBlock)).then((raffle) => {
-					if (raffle.substr(65) !== ticket.substr(65)) return;
+					if (raffle.substr(65) !== ethUtils.bufferToHex(data.ticket).substr(65)) return;
 
-					let chkhash = Buffer.from(data.payload.slice(2), 'hex'); // Buffer
+					let chkhash = Buffer.from(ethUtils.bufferToHex(data.payload).slice(2), 'hex'); // Buffer
 					sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
 					
 					// verify signature before checking nonce of the signed address

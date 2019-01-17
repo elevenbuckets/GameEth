@@ -297,14 +297,13 @@ class BattleShip extends BladeIronClient {
 									payload: tickethash
 								};
 
-								console.dir({...params, v,r,s});
                         					ethUtils.defineProperties(m, fields, {...params, v,r,s});
 			
 								// verify signature from decoding serialized data for debug purposes
 								let rlpx = m.serialize(); let d = {}; 
 								ethUtils.defineProperties(d, fields, rlpx); // decode
-								this.results[this.initHeight][nonce - 1][rlpd] = d;
-								this.results[this.initHeight][nonce - 1][rlpm] = m;
+								this.results[this.initHeight][nonce - 1]['rlpd'] = d;
+								this.results[this.initHeight][nonce - 1]['rlpm'] = m;
 
 								let sigout = {
 									chkhash: d.payload, 

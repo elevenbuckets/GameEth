@@ -270,8 +270,10 @@ class BattleShip extends BladeIronClient {
 								ticket
 							])
 
+							// FIXME: BladeIron unlockAndSign low-level API expect message buffer and will
+							// add the Ethereum message signature header for you!!! should we change this behavior?
 							let tickethash = ethUtils.hashPersonalMessage(Buffer.from(data));
-							this.client.call('unlockAndSign', [this.userWallet, tickethash]).then((sig) => 
+							this.client.call('unlockAndSign', [this.userWallet, Buffer.from(data)]).then((sig) => 
 							{
 								let nonce = this.results[this.initHeight].length + 1;
 								let v = Number(sig.v);
@@ -300,15 +302,12 @@ class BattleShip extends BladeIronClient {
                         					ethUtils.defineProperties(m, fields, {...params, v,r,s});
 			
 								// verify signature from decoding serialized data for debug purposes
-								let rlpx = m.serialize(); let d = {}; 
-								ethUtils.defineProperties(d, fields, rlpx); // decode
-								this.results[this.initHeight][nonce - 1]['rlpd'] = d;
-								this.results[this.initHeight][nonce - 1]['rlpm'] = m;
+								this.results[this.initHeight][nonce - 1]['rlp'] = m;
 
 								let sigout = {
-									chkhash: d.payload, 
-									v: ethUtils.bufferToInt(d.v), r: d.r, s: d.s, 
-									originAddress: d.originAddress, 
+									chkhash: m.payload, 
+									v: ethUtils.bufferToInt(m.v), r: m.r, s: m.s, 
+									originAddress: m.originAddress, 
 									netID: this.configs.networkID
 								};
 
@@ -316,15 +315,9 @@ class BattleShip extends BladeIronClient {
 									return this.ipfs_pubsub_publish(this.channelName, m.serialize());
 								} else {
 									console.log('Signature self-test failed!');
-									console.log('Locally generate (signature): '); console.dir({v,r,s,tickethash});
 									console.log('Locally generate (rlp): '); console.dir(m);
-									console.log("\t---\n");
-									console.log('Serialized generate (signature): '); console.dir({v: d.v,r: d.r, s: d.s ,tickethash: d.payload});
-									console.log('Serialized generate (rlp): '); console.dir(d);
 									this.stopTrial();
 								}
-
-
 							})
 							.catch((err) => { console.trace(err); });
 						}
@@ -497,15 +490,18 @@ class BattleShip extends BladeIronClient {
 				}
 	
 				if ( !('v' in data) || !('r' in data) || !('s' in data) ) return; console.dir(data);
-	
-				let sigout = {v: ethUtils.bufferToInt(data.v), r: data.r, s: data.s};
-	
+
 				this.call(this.ctrName)('winningNumber')(ethUtils.bufferToInt(data.submitBlock)).then((raffle) => {
 					if (raffle.substr(65) !== ethUtils.bufferToHex(data.ticket).substr(65)) return;
+	
+					let sigout = {
+						v: ethUtils.bufferToInt(data.v), 
+						r: data.r, s: data.s,
+						originAddress: data.originAddress,
+						chkhash: data.payload,
+						netID: this.configs.networkID
+					};
 
-					let chkhash = data.payload; // Buffer
-					sigout = { originAddress: data.originAddress, ...sigout, chkhash, netID: this.configs.networkID };
-					
 					// verify signature before checking nonce of the signed address
 					if (verifySignature(sigout)) {
 						// store tx in mem pool for IPFS publish

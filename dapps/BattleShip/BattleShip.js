@@ -191,7 +191,7 @@ class BattleShip extends BladeIronClient {
 			if ( stats.blockHeight <= this.initHeight + 8 ) {
 				return Promise.resolve(false);
 			} else if ( 
-			        stats.blokHeight > this.initHeight + this.gamePeriod
+			        stats.blockHeight > this.initHeight + this.gamePeriod
 			) {
 				this.stopTrial();
 			        if (this.results[this.initHeight].length > 0) {
@@ -271,9 +271,12 @@ class BattleShip extends BladeIronClient {
 							])
 
 							let tickethash = ethUtils.hashPersonalMessage(Buffer.from(data));
-							this.client.call('unlockAndSign', [this.userWallet, tickethash]).then((signature) => 
+							this.client.call('unlockAndSign', [this.userWallet, tickethash]).then((sig) => 
 							{
 								let nonce = this.results[this.initHeight].length + 1;
+								let v = sig.v;
+								let r = ethUtils.bufferToHex(Buffer.from(sig.r));
+								let s = ethUtils.bufferToHex(Buffer.from(sig.s));
 
 								this.results[this.initHeight].push({
 									nonce,
@@ -282,7 +285,7 @@ class BattleShip extends BladeIronClient {
 									blockNo: this.bestANS.blockNo,
 									submitBlock: stats.blockHeight - 1,
 									ticket,
-									...signature
+									v,r,s
 								});
 
 								let m = {};
@@ -294,8 +297,8 @@ class BattleShip extends BladeIronClient {
 									payload: ethUtils.bufferToHex(tickethash) 
 								};
 
-								console.dir({...params, ...signature});
-                        					ethUtils.defineProperties(m, fields, {...params, ...signature}); 
+								console.dir({...params, v,r,s});
+                        					ethUtils.defineProperties(m, fields, {...params, v,r,s});
 								return this.ipfs_pubsub_publish(this.channelName, m.serialize());
 							})
 							.catch((err) => { console.trace(err); });
@@ -442,16 +445,16 @@ class BattleShip extends BladeIronClient {
 		this.handleValidate = (msgObj) => 
 		{
 			let address;
-			let data = {};
-			let rlpx = Buffer.from(msgObj.data);
+			let data = {}; 
+			let rlpx = Buffer.from(msgObj.msg.data);
 
 			try {
 				ethUtils.defineProperties(data, fields, rlpx); // decode
 				address = ethUtils.bufferToHex(data.originAddress);
-				if ( this.winRecords[this.initHeight][address].length > 10) {
-					throw `address ${address} exceeds round limit ... ignored`;
-				} else if (typeof(this.winRecords[this.initHeight][address]) === 'undefined') {
+				if (typeof(this.winRecords[this.initHeight][address]) === 'undefined') {
 				     this.winRecords[this.initHeight][address] = [];
+				} else if ( this.winRecords[this.initHeight][address].length > 10) {
+					throw `address ${address} exceeds round limit ... ignored`;
 				}
 			} catch(err) {
 				console.trace(err);

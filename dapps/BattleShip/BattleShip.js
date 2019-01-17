@@ -274,9 +274,9 @@ class BattleShip extends BladeIronClient {
 							this.client.call('unlockAndSign', [this.userWallet, tickethash]).then((sig) => 
 							{
 								let nonce = this.results[this.initHeight].length + 1;
-								let v = sig.v;
-								let r = ethUtils.bufferToHex(Buffer.from(sig.r));
-								let s = ethUtils.bufferToHex(Buffer.from(sig.s));
+								let v = Number(sig.v);
+								let r = Buffer.from(sig.r);
+								let s = Buffer.from(sig.s);
 
 								this.results[this.initHeight].push({
 									nonce,
@@ -299,7 +299,33 @@ class BattleShip extends BladeIronClient {
 
 								console.dir({...params, v,r,s});
                         					ethUtils.defineProperties(m, fields, {...params, v,r,s});
-								return this.ipfs_pubsub_publish(this.channelName, m.serialize());
+			
+								// verify signature from decoding serialized data for debug purposes
+								let rlpx = m.serialize(); let d = {}; 
+								ethUtils.defineProperties(d, fields, rlpx); // decode
+								this.results[this.initHeight][nonce - 1][rlpd] = d;
+								this.results[this.initHeight][nonce - 1][rlpm] = m;
+
+								let sigout = {
+									chkhash: d.payload, 
+									v: d.v, r: d.r, s: d.s, 
+									originAddress: d.originAddress, 
+									netID: this.configs.networkID
+								};
+
+								if(verifySignature(sigout)) {
+									return this.ipfs_pubsub_publish(this.channelName, m.serialize());
+								} else {
+									console.log('Signature self-test failed!');
+									console.log('Locally generate (signature): '); console.dir({v,r,s,tickethash});
+									console.log('Locally generate (rlp): '); console.dir(m);
+									console.log("\t---\n");
+									console.log('Serialized generate (signature): '); console.dir({v: d.v,r: d.r, s: d.s ,tickethash: d.payload});
+									console.log('Serialized generate (rlp): '); console.dir(d);
+									this.stopTrial();
+								}
+
+
 							})
 							.catch((err) => { console.trace(err); });
 						}
@@ -479,7 +505,7 @@ class BattleShip extends BladeIronClient {
 					if (raffle.substr(65) !== ethUtils.bufferToHex(data.ticket).substr(65)) return;
 
 					let chkhash = data.payload; // Buffer
-					sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
+					sigout = { originAddress: data.originAddress, ...sigout, chkhash, netID: this.configs.networkID };
 					
 					// verify signature before checking nonce of the signed address
 					if (verifySignature(sigout)) {

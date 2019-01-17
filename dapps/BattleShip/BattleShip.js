@@ -341,7 +341,7 @@ class BattleShip extends BladeIronClient {
 
 		this.trial = (stats) => 
 		{
-			console.log("\n"); console.dir(stats);
+			//console.log("\n"); console.dir(stats);
 			if (!this.gameStarted) return;
 			if (stats.blockHeight <= this.initHeight + 7) return;
 			if ( stats.blockHeight >= this.initHeight + 10 
@@ -359,7 +359,7 @@ class BattleShip extends BladeIronClient {
 						}
 					})
 
-					console.log(`Best Answer:`); console.dir(this.bestANS);
+					//console.log(`Best Answer:`); console.dir(this.bestANS);
 					let scorehash = ethUtils.bufferToHex(ethUtils.keccak256(this.bestANS.score));
 
 					return this.register(scorehash)
@@ -381,7 +381,7 @@ class BattleShip extends BladeIronClient {
 				console.log(`Start calculating score at ${this.setAtBlock}`);
 			}
 
-			console.log('New Stats'); console.dir(stats);
+			//console.log('New Stats'); console.dir(stats);
 
 			let blockNo = stats.blockHeight - 1; console.log(`BlockNo: ${blockNo}`);
 			let localANS = []; let best; 
@@ -440,13 +440,13 @@ class BattleShip extends BladeIronClient {
 			this.probe().then((started) => 
 			{
 				if(started) {
-					console.log('Game started !!!');
 					this.client.subscribe('ethstats');
 					if (this.userWallet === this.validator) {
 						console.log('Welcome, Validator!!!');
 						this.subscribeChannel('validator');
 						this.client.on('ethstats', this.verify);
 					} else {
+						console.log('Game started !!!');
 						this.client.on('ethstats', this.trial);
 					}
 				} else {
@@ -489,7 +489,7 @@ class BattleShip extends BladeIronClient {
 					return; // discard
 				}
 	
-				if ( !('v' in data) || !('r' in data) || !('s' in data) ) return; console.dir(data);
+				if ( !('v' in data) || !('r' in data) || !('s' in data) ) return;
 
 				this.call(this.ctrName)('winningNumber')(ethUtils.bufferToInt(data.submitBlock)).then((raffle) => {
 					if (raffle.substr(65) !== ethUtils.bufferToHex(data.ticket).substr(65)) return;
@@ -505,7 +505,7 @@ class BattleShip extends BladeIronClient {
 					// verify signature before checking nonce of the signed address
 					if (verifySignature(sigout)) {
 						// store tx in mem pool for IPFS publish
-						console.log(`---> Received winning claim from ${address} ...`); console.dir(data);
+						console.log(`---> Received winning claim from ${address}, Ticket: ${ethUtils.bufferToHex(data.ticket)}`);
 						this.winRecords[this.initHeight][address].push(data);
 					}
 				})
@@ -606,11 +606,13 @@ class BattleShip extends BladeIronClient {
                         merkleTree.addLeaves(leaves); 
                         merkleTree.makeTree();
                         let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
+			console.log(`Block Merkle Root: ${merkleRoot}`);
 
 			let stage = this.generateBlock(blkObj);
 			stage = stage.then((rc) => {
-	                	return this.call(this.ctrName)('submitMerkleRoot')(blkObj.initHeight, merkleRoot, rc.hash);
-			});
+	                	return this.sendTk(this.ctrName)('submitMerkleRoot')(blkObj.initHeight, merkleRoot, rc.hash);
+			})
+			.catch((err) => { console.log(`ERROR in makeMerkleTreeAndUploadRoot`); console.trace(err); });
 			
 			return stage;
                 }
@@ -627,8 +629,12 @@ class BattleShip extends BladeIronClient {
 			}
 
 			let stage = new Promise(__genBlockBlob(blkObj));
-			stage = stage.then((blockBlobPath) => { return this.ipfsPut(blockBlobPath) } )
-				     .catch((err) => { console.trace(err); });
+			stage = stage.then((blockBlobPath) => 
+			{
+				console.log(`Local block data cache: ${blockBlobPath}`); 
+				return this.ipfsPut(blockBlobPath);
+			})
+			.catch((err) => { console.log(`ERROR in generateBlock`); console.trace(err); });
 
 			return stage;
 		}

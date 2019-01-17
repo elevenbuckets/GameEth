@@ -161,6 +161,7 @@ class BattleShip extends BladeIronClient {
 								this.myClaims.proof,
 								this.myClaims.isLeft
 							];
+							console.log(`DEBUG: claimLotteReward call args:`); console.dir(args);
 
 							return this.sendTk(this.ctrName)('claimLotteReward')(...args)()
 								   .then((qid) => { return this.getReceipts(qid); })
@@ -174,6 +175,7 @@ class BattleShip extends BladeIronClient {
 										console.dir(this.results);
 										console.dir(this.myClaims);
 										console.log(`MerkleRoot: ${mr}`);
+										console.log(`BlockData (IPFS): ${bd}`);
 										console.log(`ClaimHash: ${myClaimHash}`);
 									}
 								   })
@@ -538,7 +540,7 @@ class BattleShip extends BladeIronClient {
 		this.verifyClaimHash = () => 
 		{
 			let fmtArray = ['address'];
-			let pkgArray = [ address ];
+			let pkgArray = [ this.userWallet ];
 
 			this.myClaims = 
 			{ 
@@ -549,12 +551,12 @@ class BattleShip extends BladeIronClient {
 			  winningTickets: []
 			}
 
-			const compare = (a,b) => { if (ethUtils.bufferToInt(a.nonce) > ethUtils.bufferToInt(b.nonce)) { return 1 } else { return -1 }; return 0 };
+			const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
 			this.call(this.ctrName)('generateTickets')(this.bestANS.score).then((tlist) => {
 				this.results[this.initHeight].sort(compare).slice(0, 10).map((txObj) => {
-					let __submitBlock = ethUtils.bufferToInt(txObj.submitBlock);
-					let __ticket      = ethUtils.bufferToHex(txObj.ticket);
+					let __submitBlock = txObj.submitBlock;
+					let __ticket      = txObj.ticket;
 					pkgArray.push(__submitBlock); fmtArray.push('uint');
 					pkgArray.push(__ticket); fmtArray.push('bytes32');
 					this.myClaims.submitBlocks.push(__submitBlock);
@@ -674,7 +676,7 @@ class BattleShip extends BladeIronClient {
 	                        let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});
 	                        let isLeft = proofArr[0];
 	
-	                        targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
+	                        //targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
 	                        let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
 	
 	                        return this.call(this.ctrName)('merkleTreeValidator')(proof, isLeft, targetLeaf, merkleRoot).then((rc) => {

@@ -294,7 +294,7 @@ class BattleShip extends BladeIronClient {
 									originAddress: this.userWallet, 
 									submitBlock: stats.blockHeight - 1,
 									ticket,
-									payload: ethUtils.bufferToHex(tickethash) 
+									payload: tickethash
 								};
 
 								console.dir({...params, v,r,s});
@@ -478,7 +478,7 @@ class BattleShip extends BladeIronClient {
 				this.call(this.ctrName)('winningNumber')(ethUtils.bufferToInt(data.submitBlock)).then((raffle) => {
 					if (raffle.substr(65) !== ethUtils.bufferToHex(data.ticket).substr(65)) return;
 
-					let chkhash = Buffer.from(ethUtils.bufferToHex(data.payload).slice(2), 'hex'); // Buffer
+					let chkhash = data.payload; // Buffer
 					sigout = { originAddress: address, ...sigout, chkhash, netID: this.configs.networkID };
 					
 					// verify signature before checking nonce of the signed address

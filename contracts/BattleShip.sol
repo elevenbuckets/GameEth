@@ -48,16 +48,19 @@ contract BattleShip {
 		bool claimed;
 	}
 
-        bytes32 public merkleRoot;
+        struct battleStat{
+            bytes32 merkleRoot;
+            string ipfsAddr;
+        }
+
         bytes32 public board;
         bytes32 public prevboard;
         // address ethWinnerAddr;  // only one winner take eth
         // uint ethWinnerReward;
-        string public ipfsAddr;
 
 	mapping (address => playerInfo) playerDB;
 	// mapping (uint => mapping (address => battleStat)) battleHistory;
-	// mapping (uint => battleStat) battleHistory;
+	mapping (uint => battleStat) battleHistory;
 
 	// Modifiers
 	modifier defenderOnly() {
@@ -140,7 +143,7 @@ contract BattleShip {
 		require(winningTickets.length <= 10, "you cannot claim more tickets");
 	        require(proof.length == isLeft.length, "len of proof/isLeft mismatch");
 	        require(winningTickets.length == submitBlocks.length, "submitBlocks and winningTickets mismatch");
-		require(merkleRoot != 0x0, "no merkle root yet");
+		require(battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot != 0x0, "no merkle root yet");
 		require(block.number > playerDB[msg.sender].initHeightJoined + period_all, "too early");
 		require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7, "too late");
 		require(playerDB[msg.sender].initHeightJoined == initHeight || 
@@ -175,7 +178,8 @@ contract BattleShip {
                         claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
                 }
                 // bytes32 claimHash = keccak256(abi.encodePacked(claimHashElements));
-                require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)), merkleRoot));
+                require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)),
+                                            battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot));
 
                 // count number of winning tickets
                 bytes32 winNumber;
@@ -191,7 +195,7 @@ contract BattleShip {
         function generateTickets(bytes32 score) public view returns (bytes32[10] memory){
                 require(score != '0x0');
                 bytes32[10] memory tickets;
-                uint ticketSeedBlockNo = playerDB[msg.sender].initHeightJoined + 10;
+                uint ticketSeedBlockNo = playerDB[msg.sender].initHeightJoined + 8;
 		for (uint i = 0; i < getNumOfTickets(score); i++) {
 		        tickets[i] = keccak256(abi.encodePacked(score, ticketSeedBlockNo, i+1));  // idx of ticket start from 1
                 }
@@ -283,11 +287,14 @@ contract BattleShip {
         }
 
 	function submitMerkleRoot(uint _initHeight, bytes32 _merkleRoot, string memory _ipfsAddr) public ValidatorOnly returns (bool) {
-		require(block.number >= _initHeight + period_all && block.number < _initHeight + period_all + 3);
-	        merkleRoot = _merkleRoot;
-	        ipfsAddr = _ipfsAddr;
-
+		require(block.number > _initHeight + period_all && block.number <= _initHeight + period_all + 3);
+	        battleHistory[_initHeight].merkleRoot = _merkleRoot;
+	        battleHistory[_initHeight].ipfsAddr = _ipfsAddr;
 	        return true;
+        }
+
+        function getBlockInfo(uint _initHeight) public view returns(bytes32, string){
+	        return (battleHistory[_initHeight].merkleRoot, battleHistory[_initHeight].ipfsAddr);
         }
 
         function getBlockhash(uint blockNo) external view returns (bytes32) {

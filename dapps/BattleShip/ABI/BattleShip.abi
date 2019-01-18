@@ -100,20 +100,6 @@
   {
     "constant": true,
     "inputs": [],
-    "name": "MerkleTreeAddr",
-    "outputs": [
-      {
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
     "name": "setup",
     "outputs": [
       {
@@ -415,6 +401,10 @@
       {
         "name": "blockNo",
         "type": "uint256"
+      },
+      {
+        "name": "_board",
+        "type": "bytes32"
       }
     ],
     "name": "winningNumber",

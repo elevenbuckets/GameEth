@@ -145,50 +145,51 @@ class BattleShip extends BladeIronClient {
 				{
 					this.stopTrial();
 					// double check all submitted winning tickets are included
-					let myClaimHash = this.verifyClaimHash();
-					// preparing data structure to call withdraw, if any
-					this.validateMerkleProof(myClaimHash, bd).then((rc) => 
-					{
-						// By now, this.myClaims should be ready to use
-						if (rc) {
-							let args = 
-							[
-								this.myClaims.secret,
-								this.myClaims.slots,
-								this.myClaims.blockNo,
-								this.myClaims.submitBlocks,
-								this.myClaims.winningTickets,
-								this.myClaims.proof,
-								this.myClaims.isLeft
-							];
-							console.log(`DEBUG: claimLotteReward call args:`); console.dir(args);
-
-							return this.sendTk(this.ctrName)('claimLotteReward')(...args)()
-								   .then((qid) => { return this.getReceipts(qid); })
-								   .then((rx) => { 
-								   	let tx = rx[0];
-									console.dir(tx);
-									if (tx.status !== '0x1') {
-										throw "Claim Lottery Error!";
-									} else {
-										console.log(`***** Congretulation!!! YOU WON!!! *****`);
-										console.dir(this.results);
-										console.dir(this.myClaims);
-										console.log(`MerkleRoot: ${mr}`);
-										console.log(`BlockData (IPFS): ${bd}`);
-										console.log(`ClaimHash: ${myClaimHash}`);
-									}
-								   })
-								   .catch((err) => { console.trace(err); return; });
-						} else {
-							console.log('Merkle Proof Process FAILED!!!!!!'); 
-							console.dir(this.results);
-							console.dir(this.myClaims);
-							console.log(`MerkleRoot: ${mr}`);
-							console.log(`BlockData (IPFS): ${bd}`);
-							console.log(`ClaimHash: ${myClaimHash}`);
-							// TODO: What now?
-						}
+					this.verifyClaimHash().then((myClaimHash) => {
+						// preparing data structure to call withdraw, if any
+						this.validateMerkleProof(myClaimHash, bd).then((rc) => 
+						{
+							// By now, this.myClaims should be ready to use
+							if (rc) {
+								let args = 
+								[
+									this.myClaims.secret,
+									this.myClaims.slots,
+									this.myClaims.blockNo,
+									this.myClaims.submitBlocks,
+									this.myClaims.winningTickets,
+									this.myClaims.proof,
+									this.myClaims.isLeft
+								];
+								console.log(`DEBUG: claimLotteReward call args:`); console.dir(args);
+	
+								return this.sendTk(this.ctrName)('claimLotteReward')(...args)()
+									   .then((qid) => { return this.getReceipts(qid); })
+									   .then((rx) => { 
+									   	let tx = rx[0];
+										console.dir(tx);
+										if (tx.status !== '0x1') {
+											throw "Claim Lottery Error!";
+										} else {
+											console.log(`***** Congretulation!!! YOU WON!!! *****`);
+											console.dir(this.results);
+											console.dir(this.myClaims);
+											console.log(`MerkleRoot: ${mr}`);
+											console.log(`BlockData (IPFS): ${bd}`);
+											console.log(`ClaimHash: ${myClaimHash}`);
+										}
+									   })
+									   .catch((err) => { console.trace(err); return; });
+							} else {
+								console.log('Merkle Proof Process FAILED!!!!!!'); 
+								console.dir(this.results);
+								console.dir(this.myClaims);
+								console.log(`MerkleRoot: ${mr}`);
+								console.log(`BlockData (IPFS): ${bd}`);
+								console.log(`ClaimHash: ${myClaimHash}`);
+								// TODO: What now?
+							}
+						})
 					})
 				}
 			})
@@ -569,17 +570,18 @@ class BattleShip extends BladeIronClient {
 					this.myClaims.submitBlocks.push(__submitBlock);
 					this.myClaims.winningTickets.push(tlist.indexOf(__ticket));
 				});
+
+				console.log('DEBUG: Claim Data Structure (fmtArray, pkgArray):');
+				console.dir(fmtArray); console.dir(pkgArray);
+
+				let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
+				let claimhash = ethUtils.bufferToHex(ethUtils.keccak256(claimset));
+
+				console.log(`ClaimHash (address: ${this.userWallet}): ${claimhash}`);
+
+				return claimhash;
 			})
-
-			console.log('DEBUG: Claim Data Structure (fmtArray, pkgArray):');
-			console.dir(fmtArray); console.dir(pkgArray);
-
-			let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
-			let claimhash = ethUtils.bufferToHex(ethUtils.keccak256(claimset));
-
-			console.log(`ClaimHash: ${claimhash}`);
-
-			return claimhash;
+			.catch((err) => { console.log(`ERROR in verifyClaimHash`); console.trace(err); });
 		}
 
 		this.calcClaimHash = (address) => 

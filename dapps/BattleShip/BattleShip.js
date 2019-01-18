@@ -496,11 +496,11 @@ class BattleShip extends BladeIronClient {
 				address = ethUtils.bufferToHex(data.originAddress);
 				if ( typeof(this.winRecords[this.initHeight][address]) === 'undefined' ) {
 				     this.winRecords[this.initHeight][address] = [];
-				} else if ( ethUtils.bufferToInt(data.nonce) !== this.winRecords[this.initHeight][address].length + 1) {
-					console.log(`Invalid nonce (${address}): expected ${this.winRecords[this.initHeight][address].length + 1}, got ethUtils.bufferToInt(data.nonce)`);
+				} else if ( this.winRecords[this.initHeight][address].findIndex((x) => { return Buffer.compare(x.nonce, data.nonce) == 0 } ) !== -1) {
+					console.log(`Duplicate nonce (${address}): received nonce ${ethUtils.bufferToInt(data.nonce)} more than once`);
 					return;
 				} else if ( this.winRecords[this.initHeight][address].findIndex((x) => { return Buffer.compare(x.payload, data.payload) == 0 } ) !== -1) {
-					console.log(`Duplicate payload (${address}): ethUtils.bufferToHex(data.payload)`)
+					console.log(`Duplicate payload (${address}): ${ethUtils.bufferToHex(data.payload)}`)
 					return;
 				} else if ( this.winRecords[this.initHeight][address].length === 10) {
 					console.log(`Max nonce reached (${address}): exceeds round limit of 10... ignored`);

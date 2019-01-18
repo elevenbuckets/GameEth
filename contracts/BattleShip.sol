@@ -146,8 +146,8 @@ contract BattleShip {
 	        require(proof.length == isLeft.length, "len of proof/isLeft mismatch");
 	        require(winningTickets.length == submitBlocks.length, "submitBlocks and winningTickets mismatch");
 		require(battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot != bytes32(0), "no merkle root yet");
-		require(block.number > playerDB[msg.sender].initHeightJoined + period_all, "too early");
-		require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7, "too late");
+		// require(block.number > playerDB[msg.sender].initHeightJoined + period_all, "too early");
+		// require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7, "too late");
 
 		// require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
 		bytes32 _board;
@@ -187,10 +187,11 @@ contract BattleShip {
                 }
                 // bytes32 claimHash = keccak256(abi.encodePacked(claimHashElements));
                 require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)),
-                                            battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot));
+                                            battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot),
+                        "merkle proof failed");
 
                 // count number of winning tickets
-                require(verifyWinnumber(_board, submitBlocks, winningTickets, genTickets) == true);
+                require(verifyWinnumber(_board, submitBlocks, winningTickets, genTickets) == true, "found a wrong ticket");
 		return true;
         }
 
@@ -236,8 +237,8 @@ contract BattleShip {
 	// 	return keccak256(abi.encodePacked(samGroup[0], samGroup[1], samGroup[2], samGroup[3], blockhash(block.number - 1)));
 	// }
 
-	function getPlayerInfo(address _addr) public view returns (uint, bytes32) {
-		return (playerDB[_addr].initHeightJoined, playerDB[_addr].scoreHash);
+	function getPlayerInfo(address _addr) public view returns (uint, bytes32, bool) {
+		return (playerDB[_addr].initHeightJoined, playerDB[_addr].scoreHash, playerDB[_addr].claimed);
 	}
 
 	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {

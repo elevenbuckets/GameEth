@@ -130,32 +130,40 @@ contract BattleShip {
 		return true;
 	}
 
+
 	function claimLotteReward( // this happens after end of a game, next round may started
 	    bytes32 secret,
 	    string memory slots,
 	    uint blockNo,
-	    uint256[] memory submitBlocks,  // the winning blocks the player claimed
+	    uint[] memory submitBlocks,  // the winning blocks the player claimed
 	    uint[] memory winningTickets, // the idx of generateTickets. same order as submitBlocks
 	    bytes32[] memory proof,
-	    bool[] memory isLeft
+	    bool[] memory isLeft,
+	    bytes32 score
 	) public returns (bool) {
 		require(playerDB[msg.sender].claimed == false, "already claimed");
 		require(winningTickets.length <= 10, "you cannot claim more tickets");
 	        require(proof.length == isLeft.length, "len of proof/isLeft mismatch");
 	        require(winningTickets.length == submitBlocks.length, "submitBlocks and winningTickets mismatch");
-		require(battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot != 0x0, "no merkle root yet");
+		require(battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot != bytes32(0), "no merkle root yet");
 		require(block.number > playerDB[msg.sender].initHeightJoined + period_all, "too early");
 		require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7, "too late");
-		require(playerDB[msg.sender].initHeightJoined == initHeight || 
-		        initHeight - playerDB[msg.sender].initHeightJoined > period_all, "wrong game");  // how to more precise?
+
 		// require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
+		bytes32 _board;
+		if (playerDB[msg.sender].initHeightJoined == initHeight) {
+		        _board = board;
+                } else if (initHeight - playerDB[msg.sender].initHeightJoined > period_all) {
+                        _board = prevboard;
+                } else {
+                        revert();
+                }
 
                 // No second chance: if one of the following verification failed, the player cannot call this function again.
                 playerDB[msg.sender].claimed = true;
                 uint i;
 
 	        // verification: the secret belongs to the player
-		bytes32 score;
 		bytes32 newscore = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo))); // initialize for the loop below
 		bool[32] memory _slots = convertString32ToBool(slots); 
                 for (i = 0; i <= 31; i++) {
@@ -182,14 +190,19 @@ contract BattleShip {
                                             battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot));
 
                 // count number of winning tickets
-                bytes32 winNumber;
-                for (i=0; i<submitBlocks.length; i++){
-	                winNumber = keccak256(abi.encodePacked(prevboard, blockhash(submitBlocks[i])));
-                        // require(winNumber[30] == genTickets[winningTickets[i]][30] && winNumber[31] == genTickets[winningTickets[i]][31])
-                        require(winNumber[31] == genTickets[winningTickets[i]][31], "found a wrong ticket");  // for debug only
-		        // require(RNTInterface(RNTAddr).mint(msg.sender) == true);
-                }
+                require(verifyWinnumber(_board, submitBlocks, winningTickets, genTickets) == true);
 		return true;
+        }
+
+        function verifyWinnumber(bytes32 _board, uint[] submitBlocks, uint[] winningTickets, bytes32[5] genTickets) public view returns(bool){
+                bytes32 winNumber;
+                for (uint i=0; i<submitBlocks.length; i++){
+                            winNumber = keccak256(abi.encodePacked(_board, blockhash(submitBlocks[i])));
+                            // require(winNumber[30] == genTickets[winningTickets[i]][30] && winNumber[31] == genTickets[winningTickets[i]][31])
+                            require(winNumber[31] == genTickets[winningTickets[i]][31], "found a wrong ticket");  // for debug only
+                            // require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+                }
+                return true;
         }
 
         function generateTickets(bytes32 score) public view returns (bytes32[5] memory){

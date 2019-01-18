@@ -324,7 +324,7 @@ class BattleShip extends BladeIronClient {
 								};
 
 								if(verifySignature(sigout)) {
-									return this.ipfs_pubsub_publish(this.channelName, m.serialize());
+									this.sendClaim(m.serialize(), this.channelName);
 								} else {
 									console.log('Signature self-test failed!');
 									console.log('Locally generate (rlp): '); console.dir(m);
@@ -336,6 +336,19 @@ class BattleShip extends BladeIronClient {
 					})
 				})
 			})
+		}
+
+		this.sendClaim = (rlpx, channel) =>
+		{
+			return this.ipfs_pubsub_publish(channel, rlpx).then((rc) => { 
+				if (!rc) {
+					console.log(`Statge channel communication failed ... retrying ...`);
+					return setTimeout(this.sendClaim, 1100, rlpx, channel);
+				} else {
+					conole.log(`Signed message broadcasted!!!`);
+					return rc;
+				}
+			});
 		}
 
 		this.verify = (stats) => 
@@ -481,10 +494,17 @@ class BattleShip extends BladeIronClient {
 			try {
 				ethUtils.defineProperties(data, fields, rlpx); // decode
 				address = ethUtils.bufferToHex(data.originAddress);
-				if (typeof(this.winRecords[this.initHeight][address]) === 'undefined') {
+				if ( typeof(this.winRecords[this.initHeight][address]) === 'undefined' ) {
 				     this.winRecords[this.initHeight][address] = [];
-				} else if ( this.winRecords[this.initHeight][address].length > 10) {
-					throw `address ${address} exceeds round limit ... ignored`;
+				} else if ( ethUtils.bufferToInt(data.nonce) !== this.winRecords[this.initHeight][address].length + 1) {
+					console.log(`Invalid nonce (${address}): expected ${this.winRecords[this.initHeight][address].length + 1}, got ethUtils.bufferToInt(data.nonce)`);
+					return;
+				} else if ( this.winRecords[this.initHeight][address].findIndex((x) => { return Buffer.compare(x.payload, data.payload) == 0 } ) !== -1) {
+					console.log(`Duplicate payload (${address}): ethUtils.bufferToHex(data.payload)`)
+					return;
+				} else if ( this.winRecords[this.initHeight][address].length === 10) {
+					console.log(`Max nonce reached (${address}): exceeds round limit of 10... ignored`);
+					return;
 				}
 			} catch(err) {
 				console.trace(err);

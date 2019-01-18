@@ -345,7 +345,7 @@ class BattleShip extends BladeIronClient {
 					console.log(`Statge channel communication failed ... retrying ...`);
 					return setTimeout(this.sendClaim, 1100, rlpx, channel);
 				} else {
-					conole.log(`Signed message broadcasted!!!`);
+					console.log(`Signed message broadcasted!!!`);
 					return rc;
 				}
 			});

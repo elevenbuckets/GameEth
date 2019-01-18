@@ -262,7 +262,7 @@ class BattleShip extends BladeIronClient {
 		{
 			this.calcTickets(stats).then((rc) => {
 				if (!rc) return false;
-				this.call(this.ctrName)('winningNumber')(stats.blockHeight - 1).then((raffle) => {
+				this.call(this.ctrName)('winningNumber')(stats.blockHeight - 1, this.board).then((raffle) => {
 					Object.values(this.gameANS[this.initHeight].tickets).map((ticket) => {
 						if (raffle.substr(65) === ticket.substr(65)) { // compare to determine if winning
 							console.log(`One winning ticket found!`);
@@ -513,17 +513,17 @@ class BattleShip extends BladeIronClient {
 
 			return this.call(this.ctrName)('getPlayerInfo')(address).then((results) => 
 			{
-				let since = results[0];
+				let since = Number(results[0]);
 				let scoreHash = results[1];
 
-				if (scoreHash === '0x0' || since < this.initHeight) {
+				if (scoreHash === '0x' || since !== this.initHeight) {
 					console.log(`DEBUG: Address ${address} did not participate in this round`)
 					return; // discard
 				}
 	
 				if ( !('v' in data) || !('r' in data) || !('s' in data) ) return;
 
-				this.call(this.ctrName)('winningNumber')(ethUtils.bufferToInt(data.submitBlock)).then((raffle) => {
+				this.call(this.ctrName)('winningNumber')(ethUtils.bufferToInt(data.submitBlock), this.board).then((raffle) => {
 					if (raffle.substr(65) !== ethUtils.bufferToHex(data.ticket).substr(65)) return;
 	
 					let sigout = {

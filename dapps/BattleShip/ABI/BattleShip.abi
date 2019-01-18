@@ -252,7 +252,7 @@
     "outputs": [
       {
         "name": "",
-        "type": "bytes32[10]"
+        "type": "bytes32[5]"
       }
     ],
     "payable": false,

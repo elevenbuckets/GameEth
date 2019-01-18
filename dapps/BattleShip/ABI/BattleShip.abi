@@ -227,6 +227,10 @@
       {
         "name": "isLeft",
         "type": "bool[]"
+      },
+      {
+        "name": "score",
+        "type": "bytes32"
       }
     ],
     "name": "claimLotteReward",
@@ -238,6 +242,37 @@
     ],
     "payable": false,
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_board",
+        "type": "bytes32"
+      },
+      {
+        "name": "submitBlocks",
+        "type": "uint256[]"
+      },
+      {
+        "name": "winningTickets",
+        "type": "uint256[]"
+      },
+      {
+        "name": "genTickets",
+        "type": "bytes32[5]"
+      }
+    ],
+    "name": "verifyWinnumber",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
     "type": "function"
   },
   {

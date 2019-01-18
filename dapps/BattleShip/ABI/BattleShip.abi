@@ -231,6 +231,10 @@
       {
         "name": "score",
         "type": "bytes32"
+      },
+      {
+        "name": "claimHash",
+        "type": "bytes32"
       }
     ],
     "name": "claimLotteReward",

@@ -139,7 +139,8 @@ contract BattleShip {
 	    uint[] memory winningTickets, // the idx of generateTickets. same order as submitBlocks
 	    bytes32[] memory proof,
 	    bool[] memory isLeft,
-	    bytes32 score
+	    bytes32 score,
+	    bytes32 claimHash
 	) public returns (bool) {
 		require(playerDB[msg.sender].claimed == false, "already claimed");
 		require(winningTickets.length <= 10, "you cannot claim more tickets");
@@ -148,7 +149,6 @@ contract BattleShip {
 		require(battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot != bytes32(0), "no merkle root yet");
 		// require(block.number > playerDB[msg.sender].initHeightJoined + period_all, "too early");
 		// require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7, "too late");
-
 		// require(ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(abi.encodePacked(score)))), v, r, s) == msg.sender);
 		bytes32 _board;
 		if (playerDB[msg.sender].initHeightJoined == initHeight) {
@@ -168,7 +168,7 @@ contract BattleShip {
 		bool[32] memory _slots = convertString32ToBool(slots); 
                 for (i = 0; i <= 31; i++) {
 			if(_slots[i] == false) {
-				assert(score[i] == board[i]);
+				assert(score[i] == _board[i]);
 			} else {
 				assert(score[i] == newscore[i]);
 			}
@@ -179,14 +179,15 @@ contract BattleShip {
 
                 // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
 		bytes32[5] memory genTickets = generateTickets(score);
-                bytes32[] memory claimHashElements;
-                claimHashElements[0] = bytes20(msg.sender);
-                for (i=0; i<winningTickets.length; i++){
-                        claimHashElements[i*2+1] = bytes32(submitBlocks[i]);
-                        claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
-                }
+                // bytes32[] memory claimHashElements;
+                // claimHashElements[0] = bytes20(msg.sender);
+                // for (i=0; i<winningTickets.length; i++){
+                //         claimHashElements[i*2+1] = bytes32(submitBlocks[i]);
+                //         claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
+                // }
                 // bytes32 claimHash = keccak256(abi.encodePacked(claimHashElements));
-                require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)),
+                // require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)),
+                require(merkleTreeValidator(proof, isLeft, claimHash,
                                             battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot),
                         "merkle proof failed");
 

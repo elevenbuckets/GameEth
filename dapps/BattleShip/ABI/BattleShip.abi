@@ -330,6 +330,10 @@
       {
         "name": "",
         "type": "bytes32"
+      },
+      {
+        "name": "",
+        "type": "bool"
       }
     ],
     "payable": false,

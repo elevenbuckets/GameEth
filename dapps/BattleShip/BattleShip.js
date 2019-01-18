@@ -159,7 +159,8 @@ class BattleShip extends BladeIronClient {
 									this.myClaims.submitBlocks,
 									this.myClaims.winningTickets,
 									this.myClaims.proof,
-									this.myClaims.isLeft
+									this.myClaims.isLeft,
+									this.myClaims.score
 								];
 								console.log(`DEBUG: claimLotteReward call args:`); console.dir(args);
 	
@@ -708,7 +709,7 @@ class BattleShip extends BladeIronClient {
 	
 	                        return this.call(this.ctrName)('merkleTreeValidator')(proof, isLeft, targetLeaf, merkleRoot).then((rc) => {
 					if (rc) {
-						this.myClaims = { ...this.myClaims, proof, isLeft };
+						this.myClaims = { ...this.myClaims, proof, isLeft, score: this.gameANS[this.initHeight].score };
 					} else {
 						console.log('Warning! On-chain merkle validation will FAIL!!!');
 					}

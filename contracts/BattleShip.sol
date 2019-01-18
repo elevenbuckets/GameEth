@@ -170,7 +170,7 @@ contract BattleShip {
 		        "wrong score base on the given secret/blockNo");
 
                 // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
-		bytes32[10] memory genTickets = generateTickets(score);
+		bytes32[5] memory genTickets = generateTickets(score);
                 bytes32[] memory claimHashElements;
                 claimHashElements[0] = bytes20(msg.sender);
                 for (i=0; i<winningTickets.length; i++){
@@ -192,12 +192,12 @@ contract BattleShip {
 		return true;
         }
 
-        function generateTickets(bytes32 score) public view returns (bytes32[10] memory){
+        function generateTickets(bytes32 score) public view returns (bytes32[5] memory){
                 require(score != '0x0');
-                bytes32[10] memory tickets;
+                bytes32[5] memory tickets;
                 uint ticketSeedBlockNo = playerDB[msg.sender].initHeightJoined + 8;
 		for (uint i = 0; i < getNumOfTickets(score); i++) {
-		        tickets[i] = keccak256(abi.encodePacked(score, ticketSeedBlockNo, i+1));  // idx of ticket start from 1
+		        tickets[i] = keccak256(abi.encodePacked(score, blockhash(ticketSeedBlockNo), i+1));  // idx of ticket start from 1
                 }
                 return tickets;
         }
@@ -287,7 +287,7 @@ contract BattleShip {
         }
 
 	function submitMerkleRoot(uint _initHeight, bytes32 _merkleRoot, string memory _ipfsAddr) public ValidatorOnly returns (bool) {
-		require(block.number > _initHeight + period_all && block.number <= _initHeight + period_all + 3);
+		require(block.number >= _initHeight + period_all && block.number <= _initHeight + period_all + 3);
 	        battleHistory[_initHeight].merkleRoot = _merkleRoot;
 	        battleHistory[_initHeight].ipfsAddr = _ipfsAddr;
 	        return true;

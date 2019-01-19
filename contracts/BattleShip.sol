@@ -59,7 +59,6 @@ contract BattleShip {
         // uint ethWinnerReward;
 
 	mapping (address => playerInfo) playerDB;
-	// mapping (uint => mapping (address => battleStat)) battleHistory;
 	mapping (uint => battleStat) battleHistory;
 
 	// Modifiers
@@ -174,8 +173,8 @@ contract BattleShip {
 		// 	}
 		// }
 
-		// require(keccak256(abi.encodePacked(score)) == playerDB[msg.sender].scoreHash,
-		//         "wrong score base on the given secret/blockNo");
+		require(keccak256(abi.encodePacked(score)) == playerDB[msg.sender].scoreHash,
+		        "wrong score base on the given secret/blockNo");
 
                 // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
 		bytes32[5] memory genTickets = generateTickets(score);  // BUG: two continuos game
@@ -266,7 +265,7 @@ contract BattleShip {
 
 		initHeight = block.number;
 
-		playerDB[msg.sender].initHeightJoined = initHeight;
+                playerDB[msg.sender] = playerInfo(initHeight, bytes32(0), false);
 		playercount += 1;
 		setup = true;
 
@@ -282,9 +281,7 @@ contract BattleShip {
 		require(block.number > initHeight + 7 && block.number <= initHeight + 10, "challange: 2");
 		require(playercount + 1 <= maxPlayer, "challange: 3");
 
-		playerDB[msg.sender].claimed = false;
-		playerDB[msg.sender].initHeightJoined = initHeight;
-		playerDB[msg.sender].scoreHash = scoreHash;
+		playerDB[msg.sender] = playerInfo(initHeight, scoreHash, false);
 
 		playercount += 1;
 
@@ -333,8 +330,7 @@ contract BattleShip {
 
 	function submitMerkleRoot(uint _initHeight, bytes32 _merkleRoot, string memory _ipfsAddr) public ValidatorOnly returns (bool) {
 		require(block.number >= _initHeight + period_all && block.number <= _initHeight + period_all + 3);
-	        battleHistory[_initHeight].merkleRoot = _merkleRoot;
-	        battleHistory[_initHeight].ipfsAddr = _ipfsAddr;
+	        battleHistory[_initHeight]= battleStat(_merkleRoot, _ipfsAddr);
 	        return true;
         }
 

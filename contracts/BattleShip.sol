@@ -51,6 +51,7 @@ contract BattleShip {
         struct battleStat{
             bytes32 merkleRoot;
             string ipfsAddr;
+            bytes32 ticketSeed;
         }
 
         bytes32 public board;
@@ -228,7 +229,7 @@ contract BattleShip {
         function generateTickets(bytes32 score) public view returns (bytes32[5] memory){  //test: no uint declare
                 bytes32[5] memory tickets;
 		for (uint i = 0; i < getNumOfTickets(score); i++) {
-		        tickets[i] = keccak256(abi.encodePacked(score, blockhash(playerDB[msg.sender].initHeightJoined + 8), i+1));  // idx of ticket start from 1
+		        tickets[i] = keccak256(abi.encodePacked(score, battleHistory[playerDB[msg.sender].initHeightJoined].ticketSeed, i+1));  // idx of ticket start from 1
                 }
                 return tickets;
         }
@@ -330,12 +331,12 @@ contract BattleShip {
 
 	function submitMerkleRoot(uint _initHeight, bytes32 _merkleRoot, string memory _ipfsAddr) public ValidatorOnly returns (bool) {
 		require(block.number >= _initHeight + period_all && block.number <= _initHeight + period_all + 3);
-	        battleHistory[_initHeight]= battleStat(_merkleRoot, _ipfsAddr);
+	        battleHistory[_initHeight]= battleStat(_merkleRoot, _ipfsAddr, blockhash(_initHeight+8));
 	        return true;
         }
 
-        function getBlockInfo(uint _initHeight) public view returns(bytes32, string){
-	        return (battleHistory[_initHeight].merkleRoot, battleHistory[_initHeight].ipfsAddr);
+        function getBlockInfo(uint _initHeight) public view returns(bytes32, string, bytes32){
+	        return (battleHistory[_initHeight].merkleRoot, battleHistory[_initHeight].ipfsAddr, battleHistory[_initHeight].ticketSeed);
         }
 
         function getBlockhash(uint blockNo) external view returns (bytes32) {

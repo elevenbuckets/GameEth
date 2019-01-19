@@ -493,6 +493,10 @@
       {
         "name": "",
         "type": "string"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
       }
     ],
     "payable": false,

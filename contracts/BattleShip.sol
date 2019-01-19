@@ -359,7 +359,15 @@ contract BattleShip {
 
         function newValidator(address _newValidator) public defenderOnly returns (bool){
                 require(_newValidator != address(0));
+                require(setup = false);
                 validator = _newValidator;
+                return true;
+        }
+
+        function newDefender(address _newDefender) public defenderOnly returns (bool){
+                require(_newDefender != address(0));
+                require(setup = false);
+		defender = _newDefender;
                 return true;
         }
 

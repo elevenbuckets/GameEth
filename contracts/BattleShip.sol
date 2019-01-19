@@ -178,7 +178,7 @@ contract BattleShip {
 		//         "wrong score base on the given secret/blockNo");
 
                 // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
-		bytes32[5] memory genTickets = generateTickets(score, initHeight+8);  // BUG: two continuos game
+		bytes32[5] memory genTickets = generateTickets(score);  // BUG: two continuos game
                 // bytes32[] memory claimHashElements;
                 // claimHashElements[0] = bytes20(msg.sender);
                 // for (i=0; i<winningTickets.length; i++){
@@ -214,14 +214,22 @@ contract BattleShip {
                 return true;
         }
 
-        function generateTickets(bytes32 score, uint _blockNo) public view returns (bytes32[5] memory){
-                // require(score != bytes32(0));
+        // function generateTickets(bytes32 score, uint _blockNo) public view returns (bytes32[5] memory){
+        //         // require(score != bytes32(0));
+        //         bytes32[5] memory tickets;
+        //         // uint ticketSeedBlockNo = playerDB[msg.sender].initHeightJoined + 8;
+		// for (uint i = 0; i < getNumOfTickets(score); i++) {
+		        // tickets[i] = keccak256(abi.encodePacked(score, blockhash(_blockNo), i+1));  // idx of ticket start from 1
+		        // // tickets[i] = keccak256(abi.encodePacked(score, blockhash(playerDB[msg.sender].initHeight+8), i+1));  // idx of ticket start from 1
+		        // // tickets[i] = keccak256(abi.encodePacked(score, getBlockhash(playerDB[msg.sender].initHeight+8), i+1));  // idx of ticket start from 1
+        //         }
+        //         return tickets;
+        // }
+
+        function generateTickets(bytes32 score) public view returns (bytes32[5] memory){  //test: no uint declare
                 bytes32[5] memory tickets;
-                // uint ticketSeedBlockNo = playerDB[msg.sender].initHeightJoined + 8;
 		for (uint i = 0; i < getNumOfTickets(score); i++) {
-		        tickets[i] = keccak256(abi.encodePacked(score, blockhash(_blockNo), i+1));  // idx of ticket start from 1
-		        // tickets[i] = keccak256(abi.encodePacked(score, blockhash(playerDB[msg.sender].initHeight+8), i+1));  // idx of ticket start from 1
-		        // tickets[i] = keccak256(abi.encodePacked(score, getBlockhash(playerDB[msg.sender].initHeight+8), i+1));  // idx of ticket start from 1
+		        tickets[i] = keccak256(abi.encodePacked(score, blockhash(playerDB[msg.sender].initHeightJoined + 8), i+1));  // idx of ticket start from 1
                 }
                 return tickets;
         }

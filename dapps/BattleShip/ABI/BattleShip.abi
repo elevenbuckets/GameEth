@@ -271,10 +271,6 @@
       {
         "name": "score",
         "type": "bytes32"
-      },
-      {
-        "name": "_blockNo",
-        "type": "uint256"
       }
     ],
     "name": "generateTickets",

@@ -583,7 +583,7 @@ class BattleShip extends BladeIronClient {
 
 			const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
-			return this.call(this.ctrName)('generateTickets')(this.bestANS.score, this.initHeight + 8).then((tlist) => {
+			return this.call(this.ctrName)('generateTickets')(this.bestANS.score).then((tlist) => {
 				this.results[this.initHeight].sort(compare).slice(0, 10).map((txObj) => {
 					let __submitBlock = txObj.submitBlock;
 					let __ticket      = txObj.ticket;

@@ -16,6 +16,20 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "debug6",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "validator",
     "outputs": [
       {
@@ -302,6 +316,10 @@
       },
       {
         "name": "_debug5",
+        "type": "bool"
+      },
+      {
+        "name": "_debug6",
         "type": "bool"
       }
     ],

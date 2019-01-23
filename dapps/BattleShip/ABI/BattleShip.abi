@@ -2,39 +2,25 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "difficulty",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "validator",
     "outputs": [
       {
         "name": "",
         "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "debug2",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "debug3",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
       }
     ],
     "payable": false,
@@ -77,20 +63,6 @@
       {
         "name": "",
         "type": "bytes32"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "debug1",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
       }
     ],
     "payable": false,
@@ -229,33 +201,6 @@
     "constant": false,
     "inputs": [],
     "name": "withdraw",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "_debug1",
-        "type": "bool"
-      },
-      {
-        "name": "_debug2",
-        "type": "bool"
-      },
-      {
-        "name": "_debug3",
-        "type": "bool"
-      }
-    ],
-    "name": "debugParams",
     "outputs": [
       {
         "name": "",

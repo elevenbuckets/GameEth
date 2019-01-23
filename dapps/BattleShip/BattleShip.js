@@ -583,25 +583,29 @@ class BattleShip extends BladeIronClient {
 
 			const compare = (a,b) => { if (a.nonce > b.nonce) { return 1 } else { return -1 }; return 0 };
 
-			return this.call(this.ctrName)('generateTickets')(this.bestANS.score).then((tlist) => {
-				this.results[this.initHeight].sort(compare).slice(0, 10).map((txObj) => {
-					let __submitBlock = txObj.submitBlock;
-					let __ticket      = txObj.ticket;
-					pkgArray.push(__submitBlock); fmtArray.push('uint');
-					pkgArray.push(__ticket); fmtArray.push('bytes32');
-					this.myClaims.submitBlocks.push(__submitBlock);
-					this.myClaims.winningTickets.push(tlist.indexOf(__ticket));
-				});
-
-				console.log('DEBUG: Claim Data Structure (fmtArray, pkgArray):');
-				console.dir(fmtArray); console.dir(pkgArray);
-
-				let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
-				let claimhash = ethUtils.bufferToHex(ethUtils.keccak256(claimset));
-
-				console.log(`ClaimHash (address: ${this.userWallet}): ${claimhash}`);
-
-				return claimhash;
+			return this.call(this.ctrName)('getNumOfTickets')(this.bestANS.score).then((tlen) => {
+			     return this.call(this.ctrName)('generateTickets')(this.bestANS.score, tlen).then((tlist) => 
+				{
+					this.results[this.initHeight].sort(compare).slice(0, 10).map((txObj) => {
+						let __submitBlock = txObj.submitBlock;
+						let __ticket      = txObj.ticket;
+						pkgArray.push(__submitBlock); fmtArray.push('uint');
+						pkgArray.push(__ticket); fmtArray.push('bytes32');
+						this.myClaims.submitBlocks.push(__submitBlock);
+						this.myClaims.winningTickets.push(tlist.indexOf(__ticket));
+					});
+	
+					console.log('DEBUG: Claim Data Structure (fmtArray, pkgArray):');
+					console.dir(fmtArray); console.dir(pkgArray);
+	
+					let claimset = this.abi.encodeParameters(fmtArray, pkgArray);
+					let claimhash = ethUtils.bufferToHex(ethUtils.keccak256(claimset));
+	
+					console.log(`ClaimHash (address: ${this.userWallet}): ${claimhash}`);
+	
+					return claimhash;
+			        })
+				.catch((err) => { console.log(`ERROR in verifyClaimHash`); console.trace(err); });
 			})
 			.catch((err) => { console.log(`ERROR in verifyClaimHash`); console.trace(err); });
 		}

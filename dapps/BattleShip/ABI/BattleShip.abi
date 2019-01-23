@@ -404,6 +404,10 @@
       {
         "name": "score",
         "type": "bytes32"
+      },
+      {
+        "name": "numTickets",
+        "type": "uint256"
       }
     ],
     "name": "generateTickets",

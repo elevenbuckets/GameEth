@@ -30,6 +30,34 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "debug2",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "debug3",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "maxPlayer",
     "outputs": [
       {
@@ -72,6 +100,20 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "debug1",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "defender",
     "outputs": [
       {
@@ -100,6 +142,20 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "debug5",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "period_all",
     "outputs": [
       {
@@ -119,6 +175,20 @@
       {
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "debug4",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
       }
     ],
     "payable": false,
@@ -215,6 +285,41 @@
     "constant": false,
     "inputs": [
       {
+        "name": "_debug1",
+        "type": "bool"
+      },
+      {
+        "name": "_debug2",
+        "type": "bool"
+      },
+      {
+        "name": "_debug3",
+        "type": "bool"
+      },
+      {
+        "name": "_debug4",
+        "type": "bool"
+      },
+      {
+        "name": "_debug5",
+        "type": "bool"
+      }
+    ],
+    "name": "debugParams",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
         "name": "secret",
         "type": "bytes32"
       },
@@ -279,7 +384,7 @@
       },
       {
         "name": "genTickets",
-        "type": "bytes32[5]"
+        "type": "bytes32[]"
       }
     ],
     "name": "verifyWinnumber",
@@ -305,7 +410,7 @@
     "outputs": [
       {
         "name": "",
-        "type": "bytes32[5]"
+        "type": "bytes32[]"
       }
     ],
     "payable": false,

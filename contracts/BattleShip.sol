@@ -185,8 +185,8 @@ contract BattleShip {
 
                 // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
 		// bytes32[5] memory genTickets = generateTickets(score);
-		bytes32[] memory genTickets = new bytes32[](5);
-		genTickets = generateTickets(score);
+		bytes32[] memory genTickets = new bytes32[](getNumOfTickets(score));
+		genTickets = generateTickets(score, getNumOfTickets(score));
                 // bytes32[] memory claimHashElements;
                 // claimHashElements[0] = bytes20(msg.sender);
                 // for (uint i=0; i<winningTickets.length; i++){
@@ -226,10 +226,10 @@ contract BattleShip {
                 return true;
         }
 
-        function generateTickets(bytes32 score) public view returns (bytes32[] memory){
+        function generateTickets(bytes32 score, uint numTickets) public view returns (bytes32[] memory){
                 // require(score != bytes32(0));
-                bytes32[] memory tickets;
-		for (uint i = 0; i < getNumOfTickets(score); i++) {
+                bytes32[] memory tickets = new bytes32[](numTickets);
+		for (uint i = 0; i < numTickets; i++) {
 		        tickets[i] = keccak256(abi.encodePacked(score, ticketSeed, i+1));  // idx of ticket start from 1
                 }
                 return tickets;

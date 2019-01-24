@@ -219,7 +219,7 @@ contract BattleShip {
                 bytes32 winNumber;
                 for (uint i=0; i<submitBlocks.length; i++){
                             winNumber = keccak256(abi.encodePacked(_board, blockhash(submitBlocks[i])));
-                            if (uint(winNumber[31])%16 != uint(genTickets[winningTickets[i]][31])%16 ){
+                            if (uint8(winNumber[31])%16 != uint8(genTickets[winningTickets[i]][31])%16 ){
                                     return false;
                             }
                             // require(winNumber[31] == genTickets[winningTickets[i]][31]);  // last 1 byte = 2 digits of hex
@@ -343,7 +343,7 @@ contract BattleShip {
 	        return true;
         }
 
-        function getBlockInfo(uint _initHeight) public view returns(bytes32, string){
+        function getBlockInfo(uint _initHeight) public view returns(bytes32, string memory){
 	        return (battleHistory[_initHeight].merkleRoot, battleHistory[_initHeight].ipfsAddr);
         }
 
@@ -355,20 +355,15 @@ contract BattleShip {
 	        // verification: the secret belongs to the player
 		bytes32 myboard = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo))); // initialize for the loop below
                 bytes memory slots = bytes(slotString);
-                bytes memory outscore = new bytes(32);
+                bytes32 out;
                 for (uint i = 0; i < 32; i++) {
 		        if(slots[i] == 0x30) {  // see decimal ascii chart, '0' = 48 (decimal) = 0x30 (hex)
-		                outscore[i] = _board[i];
+		                out |= bytes32(_board[i] & 0xff ) >> (i*8);
                         } else if (slots[i] == 0x31) {
-                                outscore[i] = myboard[i];
+		                out |= bytes32(myboard[i] & 0xff ) >> (i*8);
 			}
                 }
 
-                // bytes to bytes32
-                bytes32 out;
-                for (i=0; i<32; i++){
-                        out |= bytes32( outscore[i] & 0xff ) >> (i * 8);
-                }
 		return out == score;
 	}
 

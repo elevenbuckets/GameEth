@@ -183,7 +183,7 @@ contract BattleShip {
                         // if getScore() return a bytes of length 32, somehow following 2 lines fails in at least one machine:
                         // bytes memory _score = getScore(secret, slots, blockNo, _board);
                         // require(keccak256(abi.encodePacked(_score))) == keccak256(abi.encodePacked(score)));
-                        require(getScore(secret, slots, blockNo, _board) == score);
+                        require(compareScore(secret, slots, blockNo, _board, score));
                 }
                 if (debug4){
                         require(keccak256(abi.encodePacked(score)) == playerDB[msg.sender].scoreHash,
@@ -351,28 +351,45 @@ contract BattleShip {
                 return blockhash(blockNo);
         }
 
-        function getScore(bytes32 secret, string memory slotString, uint blockNo, bytes32 _board) public view returns (bytes32){
+        function compareScore(bytes32 secret, string memory slotString, uint blockNo, bytes32 _board, bytes32 score) public view returns (bool){
 	        // verification: the secret belongs to the player
 		bytes32 myboard = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo))); // initialize for the loop below
-		// bool[32] memory _slots = convertString32ToBool(slots);
                 bytes memory slots = bytes(slotString);
-                bytes memory score = new bytes(32);
+                bytes memory outscore = new bytes(32);
                 for (uint i = 0; i < 32; i++) {
 		        if(slots[i] == 0x30) {  // see decimal ascii chart, '0' = 48 (decimal) = 0x30 (hex)
-		                score[i] = _board[i];
+		                outscore[i] = _board[i];
                         } else if (slots[i] == 0x31) {
-                                score[i] = myboard[i];
+                                outscore[i] = myboard[i];
 			}
                 }
 
                 // bytes to bytes32
                 bytes32 out;
                 for (i=0; i<32; i++){
-                        out |= bytes32( score[i] & 0xff ) >> (i * 8);
+                        out |= bytes32( outscore[i] & 0xff ) >> (i * 8);
+                }
+		return out == score;
+	}
+
+        function computeScore(bytes32 secret, string memory slotString, uint blockNo, bytes32 _board) public view returns (bytes32 out){
+		bytes32 myboard = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo))); // initialize for the loop below
+                bytes memory slots = bytes(slotString);
+                bytes memory outscore = new bytes(32);
+                for (uint i = 0; i < 32; i++) {
+		        if(slots[i] == 0x30) {  // see decimal ascii chart, '0' = 48 (decimal) = 0x30 (hex)
+		                outscore[i] = _board[i];
+                        } else if (slots[i] == 0x31) {
+                                outscore[i] = myboard[i];
+			}
+                }
+
+                // bytes to bytes32
+                for (i=0; i<32; i++){
+                        out |= bytes32( outscore[i] & 0xff ) >> (i * 8);
                 }
 		return out;
 	}
-
 
         function newValidator(address _newValidator) public defenderOnly returns (bool){
                 require(_newValidator != address(0));

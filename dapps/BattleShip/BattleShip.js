@@ -82,7 +82,8 @@ class BattleShip extends BladeIronClient {
 					this.initHeight = Number(plist[2]);
 					this.gamePeriod = Number(plist[3]);
 					this.validator = plist[4];
-                        		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board));
+                        		this.channelName = ethUtils.bufferToHex(ethUtils.sha256(this.board)); // state channel, for player to send
+                        		this.channelACK  = [ ...this.channelName ].reverse().join(''); // validator ACK channel, for player to listen
 					
 					// Reset
 					this.setAtBlock = undefined;
@@ -206,6 +207,7 @@ class BattleShip extends BladeIronClient {
 			        stats.blockHeight >= this.initHeight + this.gamePeriod
 			) {
 				this.stopTrial();
+				this.ipfs_pubsub_unsubscribe(this.channelACK);
 			        if (this.results[this.initHeight].length > 0) {
 					console.log(`Address ${this.userWallet} won ${this.results[this.initHeight].length} times! Awaiting Merkle root to withdraw prize...`);
 					this.client.subscribe('ethstats');
@@ -252,7 +254,25 @@ class BattleShip extends BladeIronClient {
 						this.gameANS[this.initHeight].tickets[i] = ethUtils.bufferToHex(ethUtils.keccak256(packed));
 						console.log(`Ticket ${i}: ${this.gameANS[this.initHeight].tickets[i]}`);
 					}
-					
+
+					// player will listen to validator ACK channel
+					this.ipfs_pubsub_subscribe(this.channelACK)((msgObj) => 
+					{
+
+						let msgs = Buffer.from(msgObj.msg.data).toString().split('_');
+						//{ submitBlock: msgs[0], fromPlayer: msgs[1], ticket: msgs[2] };
+						if (msgs[1] !== this.userWallet) return;
+
+						this.results[this.initHeight].map((robj, idx) => {
+							if ( Number(robj.submitBlock) === Number(msgs[0])
+							  && robj.ticket === msgs[2] 
+							){
+								this.results[this.initHeight][idx]['sent'] = true;
+								console.log(`-- Signed message submitted: Block = ${robj.submitBlock}, Ticket: ${robj.ticket}`);
+							}
+						})
+					});			
+	
 					return true;
 				})
 			}
@@ -292,16 +312,6 @@ class BattleShip extends BladeIronClient {
 								let r = Buffer.from(sig.r);
 								let s = Buffer.from(sig.s);
 
-								this.results[this.initHeight].push({
-									nonce,
-									secret: this.bestANS.secret,
-									slots: this.bestANS.slots.map((s) => { return s ? 1 : 0 }).join(''),
-									blockNo: this.bestANS.blockNo,
-									submitBlock: stats.blockHeight - 1,
-									ticket,
-									v,r,s
-								});
-
 								let m = {};
 								let params = {
 									nonce,
@@ -313,31 +323,41 @@ class BattleShip extends BladeIronClient {
 
                         					ethUtils.defineProperties(m, fields, {...params, v,r,s});
 			
-								// verify signature from decoding serialized data for debug purposes
+								this.results[this.initHeight].push({
+									nonce,
+									secret: this.bestANS.secret,
+									slots: this.bestANS.slots.map((s) => { return s ? 1 : 0 }).join(''),
+									blockNo: this.bestANS.blockNo,
+									submitBlock: stats.blockHeight - 1,
+									ticket,
+									v,r,s,
+									sent: false
+								});
+
 								this.results[this.initHeight][nonce - 1]['rlp'] = m;
-
-								let sigout = {
-									chkhash: m.payload, 
-									v: ethUtils.bufferToInt(m.v), r: m.r, s: m.s, 
-									originAddress: m.originAddress, 
-									netID: this.configs.networkID
-								};
-
-								if(verifySignature(sigout)) {
-									this.sendClaim(m.serialize(), this.channelName);
-								} else {
-									console.log('Signature self-test failed!');
-									console.log('Locally generate (rlp): '); console.dir(m);
-									this.stopTrial();
-								}
 							})
 							.catch((err) => { console.trace(err); });
 						}
 					})
+
+					this.sendClaims(this.initHeight, this.channelName);
 				})
 			})
 		}
 
+		this.sendClaims = (initHeight, channel) => 
+		{
+			this.results[initHeight].map((robj, idx) => {
+				if (!robj.sent) {
+					return this.ipfs_pubsub_publish(channel, robj.rlp.serialize()).then((rc) => { 
+						console.log(`- Signed message broadcasted: Block = ${robj.submitBlock}, Ticket: ${robj.ticket}`);
+					})
+					.catch((err) => { console.log(`Error in sendClaims`); console.trace(err); return false});
+				}
+			})
+		}
+
+		/*
 		this.sendClaim = (rlpx, channel) =>
 		{
 			return this.ipfs_pubsub_publish(channel, rlpx).then((rc) => { 
@@ -350,6 +370,7 @@ class BattleShip extends BladeIronClient {
 				}
 			});
 		}
+		*/
 
 		this.verify = (stats) => 
 		{
@@ -539,6 +560,10 @@ class BattleShip extends BladeIronClient {
 						// store tx in mem pool for IPFS publish
 						console.log(`---> Received winning claim from ${address}, Ticket: ${ethUtils.bufferToHex(data.ticket)}`);
 						this.winRecords[this.initHeight][address].push(data);
+						this.ipfs_pubsub_publish(
+							this.channelACK, 
+							Buffer.from(ethUtils.bufferToInt(data.submitBlock) + '_' + address + '_' + ethUtils.bufferToHex(data.ticket))
+						);
 					}
 				})
 	    		})

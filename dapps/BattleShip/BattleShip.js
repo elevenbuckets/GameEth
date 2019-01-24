@@ -741,6 +741,7 @@ class BattleShip extends BladeIronClient {
 					return rc;
 				})
 			})
+			.catch((err) => { console.log(`ERROR in validateMerkleProof`); console.trace(err); return false; })
                 }
 	}
 }

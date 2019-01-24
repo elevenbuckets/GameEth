@@ -179,10 +179,11 @@ contract BattleShip {
                 playerDB[msg.sender].claimed = true;
 
                 // verify score
-                bytes memory _score = getScore(secret, slots, blockNo, _board);
                 if (debug3){
-                        // require(keccak256(abi.encodePacked(getScore(secret, slots, blockNo, _board))) == keccak256(abi.encodePacked(score)));
-                        require(keccak256(abi.encodePacked(_score)) == keccak256(abi.encodePacked(score)));
+                        // if getScore() return a bytes of length 32, somehow following 2 lines fails in at least one machine:
+                        // bytes memory _score = getScore(secret, slots, blockNo, _board);
+                        // require(keccak256(abi.encodePacked(_score))) == keccak256(abi.encodePacked(score)));
+                        require(getScore(secret, slots, blockNo, _board) == score);
                 }
                 if (debug4){
                         require(keccak256(abi.encodePacked(score)) == playerDB[msg.sender].scoreHash,
@@ -350,7 +351,7 @@ contract BattleShip {
                 return blockhash(blockNo);
         }
 
-        function getScore(bytes32 secret, string memory slotString, uint blockNo, bytes32 _board) public view returns (bytes memory){
+        function getScore(bytes32 secret, string memory slotString, uint blockNo, bytes32 _board) public view returns (bytes32){
 	        // verification: the secret belongs to the player
 		bytes32 myboard = keccak256(abi.encodePacked(msg.sender, secret, blockhash(blockNo))); // initialize for the loop below
 		// bool[32] memory _slots = convertString32ToBool(slots);
@@ -363,14 +364,13 @@ contract BattleShip {
                                 score[i] = myboard[i];
 			}
                 }
-                return score;
 
                 // bytes to bytes32
-                // bytes32 out;
-                // for (i=0; i<32; i++){
-                //         out |= bytes32( score[i] & 0xff ) >> (i + 8);
-                // }
-		// return out;
+                bytes32 out;
+                for (i=0; i<32; i++){
+                        out |= bytes32( score[i] & 0xff ) >> (i * 8);
+                }
+		return out;
 	}
 
 

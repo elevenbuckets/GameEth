@@ -697,7 +697,7 @@
     "outputs": [
       {
         "name": "",
-        "type": "bytes"
+        "type": "bytes32"
       }
     ],
     "payable": false,

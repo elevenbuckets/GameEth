@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.2;
 import "./StandardToken.sol";
 
 contract RNT is StandardToken {
@@ -27,7 +27,7 @@ contract RNT is StandardToken {
        _balances[0x362ea687b8a372a0235466a097e578d55491d37f] = 100000000000000000;
     }
 
-    function symbol() public view returns (string){
+    function symbol() public view returns (string memory){
         return _symbol;
     }
 

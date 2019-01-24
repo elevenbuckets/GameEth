@@ -1,6 +1,9 @@
 module.exports = {
-    solc:{
-        version: 'native'
+    compilers: {
+        solc:{
+            version: '0.5.2',
+            docker: true
+        },
     },
     networks: {
         development: {

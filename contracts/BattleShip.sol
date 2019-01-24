@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.2;
 
 // import "./ERC20.sol";
 import "./SafeMath.sol";
@@ -380,7 +380,7 @@ contract BattleShip {
                 }
 
                 // bytes to bytes32
-                for (i=0; i<32; i++){
+                for (uint i=0; i<32; i++){
                         out |= bytes32( outscore[i] & 0xff ) >> (i * 8);
                 }
 		return out;

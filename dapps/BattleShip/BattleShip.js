@@ -536,7 +536,7 @@ class BattleShip extends BladeIronClient {
 						v: ethUtils.bufferToInt(data.v), 
 						r: data.r, s: data.s,
 						originAddress: data.originAddress,
-						chkhash: data.payload,
+						payload: data.payload,
 						netID: this.configs.networkID
 					};
 

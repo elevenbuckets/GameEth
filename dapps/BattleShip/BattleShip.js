@@ -4,7 +4,7 @@ const fs   = require('fs');
 const path = require('path');
 const ethUtils = require('ethereumjs-utils');
 const biapi = require('bladeiron_api');
-const MerkleTree = require('merkle_tree');
+// const MerkleTree = require('merkle_tree');
 const mkdirp = require('mkdirp');
 
 // 11BE BladeIron Client API
@@ -23,21 +23,6 @@ const fields =
    {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
 ];
 
-const verifySignature = (sigObj) =>
-{
-        let signer = '0x' +
-              ethUtils.bufferToHex(
-                ethUtils.sha3(
-                  ethUtils.bufferToHex(
-                        ethUtils.ecrecover(sigObj.chkhash, sigObj.v, sigObj.r, sigObj.s, sigObj.netID)
-                  )
-                )
-              ).slice(26);
-
-        console.log(`signer address: ${signer}`);
-
-        return signer === ethUtils.bufferToHex(sigObj.originAddress);
-}
 
 const mkdir_promise = (dirpath) =>
 {
@@ -556,7 +541,7 @@ class BattleShip extends BladeIronClient {
 					};
 
 					// verify signature before checking nonce of the signed address
-					if (verifySignature(sigout)) {
+					if (this.verifySignature(sigout)) {
 						// store tx in mem pool for IPFS publish
 						console.log(`---> Received winning claim from ${address}, Ticket: ${ethUtils.bufferToHex(data.ticket)}`);
 						this.winRecords[this.initHeight][address].push(data);
@@ -667,7 +652,6 @@ class BattleShip extends BladeIronClient {
 		{
 			// Currently, we will group all block data into single JSON and publish it on IPFS
 			let blkObj =  {initHeight: this.initHeight, data: {} };
-                	let merkleTree = new MerkleTree();
 			let leaves = [];
 
 			Object.keys(this.winRecords[blkObj.initHeight]).map((addr) => {
@@ -677,8 +661,7 @@ class BattleShip extends BladeIronClient {
 				leaves.push(claimhash);
 			})
 
-                        merkleTree.addLeaves(leaves); 
-                        merkleTree.makeTree();
+                        let merkleTree = this.makeMerkleTree(leaves);
                         let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
 			console.log(`Block Merkle Root: ${merkleRoot}`);
 
@@ -737,37 +720,52 @@ class BattleShip extends BladeIronClient {
                 this.validateMerkleProof = (targetLeaf, ipfsHash) => 
 		{
 			return this.loadPreviousLeaves(ipfsHash).then((leaves) => {
-	                	let merkleTree = new MerkleTree();
-	                        merkleTree.addLeaves(leaves); 
-	                        merkleTree.makeTree();
-
-				let __leafBuffer = Buffer.from(targetLeaf.slice(2), 'hex');
-                                let txIdx = merkleTree.tree.leaves.findIndex( (x) => { return Buffer.compare(x, __leafBuffer) == 0 } );
-                                if (txIdx == -1) {
-					console.log('Cannot find leave in tree!');
-					return false;
-				} else {
-					console.log(`Found leave in tree! Index: ${txIdx}`);
-				}
-	
-	                        let proofArr = merkleTree.getProof(txIdx, true);
-	                        let proof = proofArr[1].map((x) => {return ethUtils.bufferToHex(x);});
-	                        let isLeft = proofArr[0];
-	
-	                        //targetLeaf = ethUtils.bufferToHex(merkleTree.getLeaf(txIdx));
-	                        let merkleRoot = ethUtils.bufferToHex(merkleTree.getMerkleRoot());
-	
-	                        return this.call(this.ctrName)('merkleTreeValidator')(proof, isLeft, targetLeaf, merkleRoot).then((rc) => {
-					if (rc) {
-						this.myClaims = { ...this.myClaims, proof, isLeft, score: this.gameANS[this.initHeight].score };
-					} else {
-						console.log('Warning! On-chain merkle validation will FAIL!!!');
-					}
-					return rc;
-				})
+			        let results;
+			        results = this.getMerkleProof(leaves, targetLeaf);
+                                if (!results) {
+                                    console.log('Warning! On-chain merkle validation will FAIL!!!');
+                                    return false
+                                }
+			        let proof = results[0];
+                                let isLeft = results[1];
+                                let merkleRoot = results[2];
+                                return this.call(this.ctrName)('merkleTreeValidator')(proof, isLeft, targetLeaf, merkleRoot).then((rc) => {
+                                        if (rc) {
+                                                this.myClaims = { ...this.myClaims, proof, isLeft, score: this.gameANS[this.initHeight].score };
+                                        } else {
+                                                console.log('Warning! On-chain merkle validation will FAIL!!!');
+                                        }
+                                        return rc;
+                                })
 			})
 			.catch((err) => { console.log(`ERROR in validateMerkleProof`); console.trace(err); return false; })
                 }
+
+		this.launchGUI = () =>
+		{
+			const gui = Promise.resolve();
+
+			return gui.then(() =>
+			{
+				const spawn = require('child_process').spawn;
+		                let cwd = process.cwd();
+		                let topdir = path.join(cwd, 'dapps', this.appName, 'GUI');
+		                let configDir = require(path.join(cwd, '.local', 'bootstrap_config.json')).configDir;
+                                const out = fs.openSync('./out.log', 'a');
+                                const err = fs.openSync('./out.log', 'a');
+
+		                const subprocess = spawn(path.join(topdir,'node_modules','.bin','electron'), ['.'], {
+		                  cwd: topdir,
+                                  env: {DISPLAY: process.env.DISPLAY, XAUTHORITY: process.env.XAUTHORITY, PATH: process.env.PATH, configDir},
+		                  detached: true,
+		                  stdio: ['ignore', out, err]
+		                });
+
+		                subprocess.unref();
+
+				return true;
+			})
+		}
 	}
 }
 

@@ -361,7 +361,7 @@ class BattleShip extends BladeIronClient {
 		{
 			if (!this.gameStarted) return;
 			if (stats.blockHeight < this.initHeight + 8) return;
-			if (stats.blockHeight > this.initHeight + this.gamePeriod) {
+			if (stats.blockHeight > this.initHeight + this.gamePeriod + 1) {
 				this.stopTrial();
 				//this.ipfs_pubsub_publish(this.channelName, Buffer.from(rc.hash));
 				// Instead of broadcasting IPFS hash on pubsub, we simply write it into smart contract! 
@@ -596,7 +596,9 @@ class BattleShip extends BladeIronClient {
 			return this.call(this.ctrName)('getNumOfTickets')(this.bestANS.score).then((tlen) => {
 			     return this.call(this.ctrName)('generateTickets')(this.bestANS.score, tlen).then((tlist) => 
 				{
-					this.results[this.initHeight].sort(compare).slice(0, 10).map((txObj) => {
+					let goodResults = this.results[this.initHeight].filter((t) => { return t.sent === true });
+
+					goodResults.sort(compare).slice(0, 10).map((txObj) => {
 						let __submitBlock = txObj.submitBlock;
 						let __ticket      = txObj.ticket;
 						pkgArray.push(__submitBlock); fmtArray.push('uint');

@@ -197,14 +197,15 @@ class BattleShip extends BladeIronClient {
 
 				if (this.userWallet === this.defender) {
 					console.log('Welcome, Defender!!!');
-					if (!this.gameStarted) {
+					if (!this.gameStarted && this.defenderActions.fortify === false) {
 						let board = ethUtils.bufferToHex(ethUtils.sha256(String(Math.random()) + 'ElevenBuckets'));
 						this.sendTk(this.ctrName)('fortify')(board)(10000000000000000)
-						    .then((qid) => { return this.getReceipts(qid) })
+						    .then((qid) => { this.defenderActions.fortify = true; return this.getReceipts(qid) })
 						    .then((txs) => {
 							   let tx = txs[0];
 							   if (tx.status === '0x1') { 
 								   this.call(this.ctrName)('initHeight')().then((h) => {
+									this.defenderActions.fortify = false;
 							           	console.log(`DefenderBot: New game No. ${h} has begun!`); 
 								   })
 							   } else {
@@ -212,12 +213,13 @@ class BattleShip extends BladeIronClient {
 								   this.stopTrial();
 							   }
 						    }) 
-					} else if (this.gameStarted && stats.blockHeight >= this.initHeight + this.gamePeriod + 3) {
+					} else if (this.gameStarted && stats.blockHeight >= this.initHeight + this.gamePeriod + 3 && this.defenderActions.fallback === false) {
 						this.sendTx('ETH')(this.ctrAddrBook[this.ctrName], 0)
-						    .then((qid) => { return this.getReceipts(qid) })
+						    .then((qid) => { this.defenderActions.fallback = true; return this.getReceipts(qid) })
 						    .then((txs) => {
 							   let tx = txs[0];
 							   if (tx.status === '0x1') { 
+								   this.defenderActions.fallback = false;
 							           console.log(`DefenderBot: Game No. ${this.initHeight} has ended!`); 
 							   } else {
 								   console.log(`DefenderBot: Fallback FAILED!! Please check contract or account balance!`);
@@ -515,6 +517,7 @@ class BattleShip extends BladeIronClient {
 				console.log('DEBUG: Initializing defender mode as configured ...');
 				this.client.subscribe('ethstats');
 				this.client.on('ethstats', this.defenderBot);
+				this.defenderActions = {fortify: false, fallback: false}
 				return;
 			} 
 

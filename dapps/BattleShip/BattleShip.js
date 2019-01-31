@@ -184,6 +184,54 @@ class BattleShip extends BladeIronClient {
 			.catch((err) => { console.log('ERROR in checkMerkle'); console.trace(err); });
 		}
 
+		// this is ONLY for demoing / testing !!!
+		this.defenderBot = (stats) => 
+		{
+			let p = ['setup', 'initHeight', 'period_all', 'defender'].map((i) => { return this.call(this.ctrName)(i)() });
+
+			return Promise.all(p).then((plist) => {
+				this.gameStarted = plist[0];
+				this.initHeight  = Number(plist[1]);
+				this.gamePeriod  = Number(plist[3]);
+				this.defender    = plist[4];
+
+				if (this.userWallet === this.defender) {
+					console.log('Welcome, Defender!!!');
+					if (!this.gameStarted) {
+						let board = ethUtils.bufferToHex(ethUtils.sha256(String(Math.random()) + 'ElevenBuckets'));
+						this.sendTk(this.ctrName)('fortify')(board)(10000000000000000)
+						    .then((qid) => { return this.getReceipts(qid) })
+						    .then((txs) => {
+							   let tx = txs[0];
+							   if (tx.status === '0x1') { 
+								   this.call(this.ctrName)('initHeight')().then((h) => {
+							           	console.log(`DefenderBot: New game No. ${h} has begun!`); 
+								   })
+							   } else {
+								   console.log(`DefenderBot: Fortify FAILED! Please check contract or account balance!`);
+								   this.stopTrial();
+							   }
+						    }) 
+					} else if (this.gameStarted && stats.blockHeight >= this.initHeight + this.gamePeriod + 3) {
+						this.sendTx('ETH')(this.ctrAddrBook[this.ctrName], 0)
+						    .then((qid) => { return this.getReceipts(qid) })
+						    .then((txs) => {
+							   let tx = txs[0];
+							   if (tx.status === '0x1') { 
+							           console.log(`DefenderBot: Game No. ${this.initHeight} has ended!`); 
+							   } else {
+								   console.log(`DefenderBot: Fallback FAILED!! Please check contract or account balance!`);
+								   this.stopTrial();
+							   }
+						    }) 
+					}
+				} else {
+					console.log(`Sorry, but address ${this.userWallet} is no longer the defender ... event trigger will be stopped`);
+					this.stopTrial();
+				}
+			})
+		}
+
 		this.calcTickets = (stats) => 
 		{
 			if ( stats.blockHeight <= this.initHeight + 8 ) {
@@ -463,6 +511,13 @@ class BattleShip extends BladeIronClient {
 
 		this.startTrial = (tryMore = 1183) => 
 		{
+			if (typeof(this.configs.defenderBot) !== 'undefined' && this.configs.defenderBot === true) {
+				console.log('DEBUG: Initializing defender mode as configured ...');
+				this.client.subscribe('ethstats');
+				this.client.on('ethstats', this.defenderBot);
+				return;
+			} 
+
                         if (tryMore > 0) { 
 				if (tryMore > 2000) tryMore = 2000;
 				this.moreSecret(tryMore); 

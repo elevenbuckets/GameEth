@@ -192,8 +192,8 @@ class BattleShip extends BladeIronClient {
 			return Promise.all(p).then((plist) => {
 				this.gameStarted = plist[0];
 				this.initHeight  = Number(plist[1]);
-				this.gamePeriod  = Number(plist[3]);
-				this.defender    = plist[4];
+				this.gamePeriod  = Number(plist[2]);
+				this.defender    = plist[3];
 
 				if (this.userWallet === this.defender) {
 					console.log('Welcome, Defender!!!');

@@ -175,6 +175,12 @@ class BattleShip extends BladeIronClient {
 											console.log(`MerkleRoot: ${mr}`);
 											console.log(`BlockData (IPFS): ${bd}`);
 											console.log(`ClaimHash: ${myClaimHash}`);
+
+											if (typeof(this.configs.gamerBot) !== undefined 
+											 && toBool(this.configs.gamerBot) === true
+											) {
+												this.startTrial(this.configs.tryMore);
+											}
 										}
 									   })
 									   .catch((err) => { console.trace(err); return; });
@@ -260,6 +266,12 @@ class BattleShip extends BladeIronClient {
 					this.client.on('ethstats', this.checkMerkle);
 				} else {
 					console.log(`Thank you for playing ${this.ctrName}. Hope you will get some luck next time!!!`);
+
+					if (typeof(this.configs.gamerBot) !== undefined 
+					 && toBool(this.configs.gamerBot) === true
+					) {
+						this.startTrial(this.configs.tryMore);
+					}
 				}
 				return Promise.resolve(false);
 			} else if (
@@ -428,6 +440,12 @@ class BattleShip extends BladeIronClient {
 				// Instead of broadcasting IPFS hash on pubsub, we simply write it into smart contract! 
 				this.unsubscribeChannel();
 				this.makeMerkleTreeAndUploadRoot();
+
+				if (typeof(this.configs.validatorBot) !== undefined 
+				 && toBool(this.configs.validatorBot) === true
+				) {
+					this.startTrial();
+				}
 			}
 		}	
 
@@ -535,14 +553,15 @@ class BattleShip extends BladeIronClient {
 					this.defenderActions = {fortify: false, fallback: false}
 					return;
 				} 
-	
-	                        if (tryMore > 0) { 
-					if (tryMore > 2000) tryMore = 2000;
-					this.moreSecret(tryMore); 
-				};
-	
-				const __vg_bots = () => 
+
+				const __vg_bots = (tryMore) => (stats) =>
 				{
+	                        	if (tryMore > 0) { 
+						if (tryMore > 2000) tryMore = 2000;
+						this.moreSecret(tryMore); 
+						this.configs.tryMore = tryMore;
+					}
+	
 					this.stopTrial();
 					this.probe().then((started) => 
 					{
@@ -564,7 +583,7 @@ class BattleShip extends BladeIronClient {
 							) { 
 								console.log('Bots will retry ...');
 								this.client.subscribe('ethstats');
-								this.client.on('ethstats', __vg_bots); 
+								this.client.on('ethstats', __vg_bots(tryMore)); 
 								return; 
 							}
 						}
@@ -572,7 +591,7 @@ class BattleShip extends BladeIronClient {
 		        		.catch((err) => { console.log('Error in startTrial (__vg_bots):'); console.trace(err); return; })
 				}
 
-				__vg_bots();
+				__vg_bots(tryMore)({});
 			})
 		        .catch((err) => { console.log('Error in startTrial:'); console.trace(err); return; })
 		}

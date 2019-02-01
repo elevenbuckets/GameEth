@@ -483,6 +483,12 @@ class BattleShip extends BladeIronClient {
 						   })
 				} else {
 					console.log(`Too late or not managed to calculate score to participate this round...`);
+
+					if (typeof(this.configs.gamerBot) !== undefined 
+					 && toBool(this.configs.gamerBot) === true
+					) {
+						this.startTrial(this.configs.tryMore);
+					}
 					return;
 				}
 			}

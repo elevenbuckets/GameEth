@@ -225,7 +225,8 @@ class BattleShip extends BladeIronClient {
 								   console.log(`DefenderBot: Fallback FAILED!! Please check contract or account balance!`);
 								   this.stopTrial();
 							   }
-						    }) 
+						    })
+						    .catch((err) => { console.trace(err); }) 
 					}
 				} else {
 					console.log(`Sorry, but address ${this.userWallet} is no longer the defender ... event trigger will be stopped`);

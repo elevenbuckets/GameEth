@@ -23,6 +23,14 @@ const fields =
    {name: 's', allowZero: true, length: 32, default: new Buffer([]) }
 ];
 
+const toBool = (str) => 
+{ 
+	if (str.toLowerCase() === 'true') { 
+		return true 
+	} else { 
+		return false
+	} 
+}
 
 const mkdir_promise = (dirpath) =>
 {
@@ -518,7 +526,7 @@ class BattleShip extends BladeIronClient {
 			{  
 				console.log(`IPFS Address: ${obj.id}, Agent: ${obj.agentVersion}, Protocol: ${obj.protocolVersion}`);
 
-				if (typeof(this.configs.defenderBot) !== 'undefined' && this.configs.defenderBot === true) {
+				if (typeof(this.configs.defenderBot) !== 'undefined' && toBool(this.configs.defenderBot) === true) {
 					console.log('DEBUG: Initializing defender mode as configured ...');
 					this.client.subscribe('ethstats');
 					this.client.on('ethstats', this.defenderBot);
@@ -531,7 +539,7 @@ class BattleShip extends BladeIronClient {
 					this.moreSecret(tryMore); 
 				};
 	
-				const __vg_bots = (stats) => 
+				const __vg_bots = () => 
 				{
 					this.stopTrial();
 					this.probe().then((started) => 
@@ -549,9 +557,10 @@ class BattleShip extends BladeIronClient {
 						} else {
 							console.log('Game has not yet been set ...');
 							if (
-							     (typeof(this.configs.validatorBot) !== 'undefined' && this.configs.validatorBot === true)
-							  || (typeof(this.configs.gamerBot) !== 'undefined' && this.configs.gamerBot === true)
+							     (typeof(this.configs.validatorBot) !== 'undefined' && toBool(this.configs.validatorBot) === true)
+							  || (typeof(this.configs.gamerBot) !== 'undefined' && toBool(this.configs.gamerBot) === true)
 							) { 
+								console.log('Bots will retry ...');
 								this.client.subscribe('ethstats');
 								this.client.on('ethstats', __vg_bots); 
 								return; 
@@ -560,6 +569,8 @@ class BattleShip extends BladeIronClient {
 					})
 		        		.catch((err) => { console.log('Error in startTrial (__vg_bots):'); console.trace(err); return; })
 				}
+
+				__vg_bots();
 			})
 		        .catch((err) => { console.log('Error in startTrial:'); console.trace(err); return; })
 		}

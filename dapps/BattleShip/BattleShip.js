@@ -156,8 +156,7 @@ class BattleShip extends BladeIronClient {
 									this.myClaims.winningTickets,
 									this.myClaims.proof,
 									this.myClaims.isLeft,
-									this.myClaims.score,
-									myClaimHash
+									this.myClaims.score
 								];
 								console.log(`DEBUG: claimLotteReward call args:`); console.dir(args);
 	
@@ -483,6 +482,12 @@ class BattleShip extends BladeIronClient {
 						   })
 				} else {
 					console.log(`Too late or not managed to calculate score to participate this round...`);
+
+					if (typeof(this.configs.gamerBot) !== undefined 
+					 && toBool(this.configs.gamerBot) === true
+					) {
+						this.startTrial(this.configs.tryMore);
+					}
 					return;
 				}
 			}

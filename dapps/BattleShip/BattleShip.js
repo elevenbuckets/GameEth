@@ -531,22 +531,35 @@ class BattleShip extends BladeIronClient {
 					this.moreSecret(tryMore); 
 				};
 	
-				this.probe().then((started) => 
+				const __vg_bots = (stats) => 
 				{
-					if(started) {
-						this.client.subscribe('ethstats');
-						if (this.userWallet === this.validator) {
-							console.log('Welcome, Validator!!!');
-							this.subscribeChannel('validator');
-							this.client.on('ethstats', this.verify);
+					this.stopTrial();
+					this.probe().then((started) => 
+					{
+						if(started) {
+							this.client.subscribe('ethstats');
+							if (this.userWallet === this.validator) {
+								console.log('Welcome, Validator!!!');
+								this.subscribeChannel('validator');
+								this.client.on('ethstats', this.verify);
+							} else {
+								console.log('Game started !!!');
+								this.client.on('ethstats', this.trial);
+							}
 						} else {
-							console.log('Game started !!!');
-							this.client.on('ethstats', this.trial);
+							console.log('Game has not yet been set ...');
+							if (
+							     (typeof(this.configs.validatorBot) !== 'undefined' && this.configs.validatorBot === true)
+							  || (typeof(this.configs.gamerBot) !== 'undefined' && this.configs.gamerBot === true)
+							) { 
+								this.client.subscribe('ethstats');
+								this.client.on('ethstats', __vg_bots); 
+								return; 
+							}
 						}
-					} else {
-						console.log('Game has not yet been set ...');
-					}
-				})
+					})
+		        		.catch((err) => { console.log('Error in startTrial (__vg_bots):'); console.trace(err); return; })
+				}
 			})
 		        .catch((err) => { console.log('Error in startTrial:'); console.trace(err); return; })
 		}

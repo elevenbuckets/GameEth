@@ -323,6 +323,7 @@ class BattleShip extends BladeIronClient {
 						this.results[this.initHeight].map((robj, idx) => {
 							if ( Number(robj.submitBlock) === Number(msgs[0])
 							  && robj.ticket === msgs[2] 
+							  && robj.sent === false
 							){
 								this.results[this.initHeight][idx]['sent'] = true;
 								console.log(`-- Signed message submitted: Block = ${robj.submitBlock}, Ticket: ${robj.ticket}`);
@@ -737,6 +738,22 @@ class BattleShip extends BladeIronClient {
 			.catch((err) => { console.log(`ERROR in verifyClaimHash`); console.trace(err); });
 		}
 
+		// Specific for BattleShip RLP fields!!!
+		// This function is only used *AFTER* the input list has been sorted !!!!
+		this.uniqRLP = (rlplist) => 
+		{
+			let rlpObjs = rlplist.map((r) => { return r.toJSON() });
+			let sbklist = []; let tktlist = [];
+			rlpObjs.map((ro, idx) => { 
+				if (idx > 0 && ro.submitBlocks === sbklist[idx-1] && ro.ticket === tktlist[idx-1]) {
+					rlplist.splice(idx,1);
+				}
+				sbklist.push(ro.submitBlocks); tktlist.push(ro.ticket); 
+			}
+
+			return rlplist;
+		}
+
 		this.calcClaimHash = (address) => 
 		{
 			let fmtArray = ['address'];
@@ -744,7 +761,9 @@ class BattleShip extends BladeIronClient {
 
 			const compare = (a,b) => { if (ethUtils.bufferToInt(a.nonce) > ethUtils.bufferToInt(b.nonce)) { return 1 } else { return -1 }; return 0 };
 
-			this.winRecords[this.initHeight][address].sort(compare).slice(0, 10).map((txObj) => {
+			let winRcdSorted = this.winRecords[this.initHeight][address].sort(compare).slice(0, 10);
+
+			this.uniqRLP(winRcdSorted).map((txObj) => {
 				pkgArray.push(ethUtils.bufferToInt(txObj.submitBlock)); fmtArray.push('uint');
 				pkgArray.push(ethUtils.bufferToHex(txObj.ticket)); fmtArray.push('bytes32');
 			});

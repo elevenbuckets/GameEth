@@ -514,35 +514,41 @@ class BattleShip extends BladeIronClient {
 
 		this.startTrial = (tryMore = 1183) => 
 		{
-			if (typeof(this.configs.defenderBot) !== 'undefined' && this.configs.defenderBot === true) {
-				console.log('DEBUG: Initializing defender mode as configured ...');
-				this.client.subscribe('ethstats');
-				this.client.on('ethstats', this.defenderBot);
-				this.defenderActions = {fortify: false, fallback: false}
-				return;
-			} 
+			this.ipfsId().then((obj) => 
+			{  
+				console.log(`IPFS Address: ${obj.id}, Agent: ${obj.agentVersion}, Protocol: ${obj.protocolVersion}`);
 
-                        if (tryMore > 0) { 
-				if (tryMore > 2000) tryMore = 2000;
-				this.moreSecret(tryMore); 
-			};
-
-			this.probe().then((started) => 
-			{
-				if(started) {
+				if (typeof(this.configs.defenderBot) !== 'undefined' && this.configs.defenderBot === true) {
+					console.log('DEBUG: Initializing defender mode as configured ...');
 					this.client.subscribe('ethstats');
-					if (this.userWallet === this.validator) {
-						console.log('Welcome, Validator!!!');
-						this.subscribeChannel('validator');
-						this.client.on('ethstats', this.verify);
+					this.client.on('ethstats', this.defenderBot);
+					this.defenderActions = {fortify: false, fallback: false}
+					return;
+				} 
+	
+	                        if (tryMore > 0) { 
+					if (tryMore > 2000) tryMore = 2000;
+					this.moreSecret(tryMore); 
+				};
+	
+				this.probe().then((started) => 
+				{
+					if(started) {
+						this.client.subscribe('ethstats');
+						if (this.userWallet === this.validator) {
+							console.log('Welcome, Validator!!!');
+							this.subscribeChannel('validator');
+							this.client.on('ethstats', this.verify);
+						} else {
+							console.log('Game started !!!');
+							this.client.on('ethstats', this.trial);
+						}
 					} else {
-						console.log('Game started !!!');
-						this.client.on('ethstats', this.trial);
+						console.log('Game has not yet been set ...');
 					}
-				} else {
-					console.log('Game has not yet been set ...');
-				}
+				})
 			})
+		        .catch((err) => { console.log('Error in startTrial:'); console.trace(err); return; })
 		}
 
                 this.moreSecret = (sizeOfSecrets) =>

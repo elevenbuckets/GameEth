@@ -156,8 +156,7 @@ class BattleShip extends BladeIronClient {
 									this.myClaims.winningTickets,
 									this.myClaims.proof,
 									this.myClaims.isLeft,
-									this.myClaims.score,
-									myClaimHash
+									this.myClaims.score
 								];
 								console.log(`DEBUG: claimLotteReward call args:`); console.dir(args);
 	

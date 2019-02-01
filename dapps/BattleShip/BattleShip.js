@@ -24,7 +24,9 @@ const fields =
 ];
 
 const toBool = (str) => 
-{ 
+{
+	if (typeof(str) === 'boolean') return str;
+ 
 	if (str.toLowerCase() === 'true') { 
 		return true 
 	} else { 

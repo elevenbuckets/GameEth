@@ -749,13 +749,17 @@ class BattleShip extends BladeIronClient {
 		// This function is only used *AFTER* the input list has been sorted !!!!
 		this.uniqRLP = (rlplist) => 
 		{
-			let rlpObjs = rlplist.map((r) => { return r.toJSON() });
 			let sbklist = []; let tktlist = [];
+			let rlpObjs = rlplist.map((r) => { 
+				sbklist.push(r.toJSON().submitBlock); 
+				tktlist.push(r.toJSON().ticket); 
+				return r.toJSON();
+			});
+
 			rlpObjs.map((ro, idx) => { 
 				if (idx > 0 && ro.submitBlock === sbklist[idx-1] && ro.ticket === tktlist[idx-1]) {
 					rlplist[idx] = null;
 				}
-				sbklist.push(ro.submitBlock); tktlist.push(ro.ticket); 
 			})
 
 			return rlplist.filter((x) => { return x !== null });

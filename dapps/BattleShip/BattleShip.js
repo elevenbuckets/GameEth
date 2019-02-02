@@ -558,11 +558,15 @@ class BattleShip extends BladeIronClient {
 					{
 						if(started) {
 							this.client.subscribe('ethstats');
-							if (this.userWallet === this.validator && typeof(this.validatorAction[this.initHeight]) === 'undefined') {
-								console.log('Welcome, Validator!!!');
-								this.subscribeChannel('validator');
-								this.client.on('ethstats', this.verify);
-								this.validatorAction[this.initHeight] = true;
+							if (this.userWallet === this.validator) {
+								if (typeof(this.validatorAction) === 'undefined') {
+									console.log('Welcome, Validator!!!');
+									this.validatorAction = {};
+								} else if (typeof(this.validatorAction[this.initHeight]) === 'undefined') {
+									this.subscribeChannel('validator');
+									this.client.on('ethstats', this.verify);
+									this.validatorAction[this.initHeight] = true;
+								}
 							} else {
 								this.call(this.ctrName)('getPlayerInfo')(this.userWallet).then((r) => 
 								{

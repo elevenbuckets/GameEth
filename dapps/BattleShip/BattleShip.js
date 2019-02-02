@@ -211,8 +211,8 @@ class BattleShip extends BladeIronClient {
 				this.defender    = plist[3];
 
 				if (this.userWallet === this.defender) {
-					console.log('Welcome, Defender!!!');
 					if (!this.gameStarted && this.defenderActions.fortify === false) {
+						console.log('Welcome, Defender!!! Please start new game!');
 						let board = ethUtils.bufferToHex(ethUtils.sha256(String(Math.random()) + 'ElevenBuckets'));
 						this.sendTk(this.ctrName)('fortify')(board)(10000000000000000)
 						    .then((qid) => { this.defenderActions.fortify = true; return this.getReceipts(qid) })
@@ -229,6 +229,7 @@ class BattleShip extends BladeIronClient {
 							   }
 						    }) 
 					} else if (this.gameStarted && stats.blockHeight >= this.initHeight + this.gamePeriod + 3 && this.defenderActions.fallback === false) {
+						console.log('Welcome, Defender!!! Please ended current game!');
 						this.sendTx('ETH')(this.ctrAddrBook[this.ctrName], 0)
 						    .then((qid) => { this.defenderActions.fallback = true; return this.getReceipts(qid) })
 						    .then((txs) => {
@@ -559,36 +560,44 @@ class BattleShip extends BladeIronClient {
 						if(started) {
 							this.client.subscribe('ethstats');
 							if (this.userWallet === this.validator) {
-								if (typeof(this.validatorAction) === 'undefined') {
-									console.log('Welcome, Validator!!!');
-									this.validatorAction = {};
-								} else if (typeof(this.validatorAction[this.initHeight]) === 'undefined') {
+								if (typeof(this.validatorAction) === 'undefined') this.validatorAction = {};
+								if (typeof(this.validatorAction[this.initHeight]) === 'undefined') {
+									console.log(`Welcome, Validator!!! The new game is ${this.initHeight}`);
 									this.subscribeChannel('validator');
 									this.client.on('ethstats', this.verify);
 									this.validatorAction[this.initHeight] = true;
+									return;
 								}
+								__bot_will_retry();
 							} else {
-								this.call(this.ctrName)('getPlayerInfo')(this.userWallet).then((r) => 
-								{
-									if (Number(r[0]) === this.initHeight) return;
+								if (typeof(this.gamerAction) === 'undefined') this.gamerAction = {};
+								if (typeof(this.gamerAction[this.initHeight]) === 'undefined') {
 									console.log('Game started !!!');
 									this.client.on('ethstats', this.trial);
-								})
+									this.gamerAction[this.initHeight] = true;
+									return;
+								}
+								__bot_will_retry();
 							}
 						} else {
 							console.log('Game has not yet been set ...');
-							if (
-							     (typeof(this.configs.validatorBot) !== 'undefined' && toBool(this.configs.validatorBot) === true)
-							  || (typeof(this.configs.gamerBot) !== 'undefined' && toBool(this.configs.gamerBot) === true)
-							) { 
-								console.log('Bots will retry ...');
-								this.client.subscribe('ethstats');
-								this.client.on('ethstats', __vg_bots(tryMore)); 
-								return; 
-							}
+							__bot_will_retry();
 						}
 					})
 		        		.catch((err) => { console.log('Error in startTrial (__vg_bots):'); console.trace(err); return; })
+				}
+
+				const __bot_will_retry = () => 
+				{
+					if (
+					     (typeof(this.configs.validatorBot) !== 'undefined' && toBool(this.configs.validatorBot) === true)
+					  || (typeof(this.configs.gamerBot) !== 'undefined' && toBool(this.configs.gamerBot) === true)
+					) { 
+						console.log('Bots will retry ...');
+						this.client.subscribe('ethstats');
+						this.client.on('ethstats', __vg_bots(tryMore)); 
+						return; 
+					}
 				}
 
 				__vg_bots(tryMore)({});

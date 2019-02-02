@@ -186,21 +186,18 @@ contract BattleShip {
                 require(keccak256(abi.encodePacked(score)) == playerDB[msg.sender].scoreHash,
                         "wrong score base on the given secret/blockNo");
 
-                // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
-		// bytes32[5] memory genTickets = generateTickets(score);
 		bytes32[] memory genTickets = new bytes32[](getNumOfTickets(score));
 		genTickets = generateTickets(score, getNumOfTickets(score));
-                bytes32[] memory claimHashElements;
+
+                // generate "claimHash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
+		// bytes32[5] memory genTickets = generateTickets(score);
+		bytes32 claimHash;
 		if (debug4){
-                        claimHashElements[0] = bytes20(msg.sender);
-                        for (uint i=0; i<winningTickets.length; i++){
-                                claimHashElements[i*2+1] = bytes32(submitBlocks[i]);
-                                claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
-                        }
+		        claimHash = getClaimHash(winningTickets, submitBlocks, genTickets);
                 }
 
                 if (debug5){
-                        require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)),
+                        require(merkleTreeValidator(proof, isLeft, claimHash,
                                                     battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot),
                                 "merkle proof failed");
                 }
@@ -210,6 +207,16 @@ contract BattleShip {
                         require(verifyWinnumber(_board, submitBlocks, winningTickets, genTickets) == true, "found a wrong ticket");
                 }
 		return true;
+        }
+
+	function getClaimHash(uint[] memory winningTickets, uint[] memory submitBlocks, bytes32[] memory genTickets) public view returns(bytes32 claimHash){
+                bytes32[] memory claimHashElements;
+                claimHashElements[0] = bytes20(msg.sender);
+                for (uint i=0; i<winningTickets.length; i++){
+                        claimHashElements[i*2+1] = bytes32(submitBlocks[i]);
+                        claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
+                }
+                claimHash = keccak256(abi.encodePacked(claimHashElements));
         }
 
         function verifyWinnumber(bytes32 _board, uint[] memory submitBlocks, uint[] memory winningTickets, bytes32[] memory genTickets) public view returns(bool){

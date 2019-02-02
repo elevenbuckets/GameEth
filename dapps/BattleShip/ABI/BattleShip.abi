@@ -408,6 +408,34 @@
     "constant": true,
     "inputs": [
       {
+        "name": "winningTickets",
+        "type": "uint256[]"
+      },
+      {
+        "name": "submitBlocks",
+        "type": "uint256[]"
+      },
+      {
+        "name": "genTickets",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "getClaimHash",
+    "outputs": [
+      {
+        "name": "claimHash",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x6903be12"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
         "name": "_board",
         "type": "bytes32"
       },

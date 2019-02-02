@@ -751,44 +751,22 @@ class BattleShip extends BladeIronClient {
 		{
 			let sbklist = []; let tktlist = [];
 			let rlpObjs = rlplist.map((r) => { 
-				sbklist.push(r.toJSON().submitBlock); 
-				tktlist.push(r.toJSON().ticket); 
+				sbklist.push(r.toJSON()[2]); // submitBlock 
+				tktlist.push(r.toJSON()[3]); // ticket
 				return r.toJSON();
 			});
 
 			console.log(`DEBUG: sbklist`); console.dir(sbklist);
 			console.log(`DEBUG: tktlist`); console.dir(tktlist);
 			console.log(`DEBUG: rlpObjs`); console.dir(rlpObjs);
-			console.log(`DEBUG: origin rlplist`); console.dir(rlplist);
 
 			rlpObjs.map((ro, idx) => { 
-				if (idx > 0 && ro.submitBlock === sbklist[idx-1] && ro.ticket === tktlist[idx-1]) {
+				if (idx > 0 && ro[2] === sbklist[idx-1] && ro[3] === tktlist[idx-1]) {
 					rlplist[idx] = null;
 				}
 			})
 
-			console.log(`DEBUG: final rlplist`); console.dir(rlplist);
 			return rlplist.filter((x) => { return x !== null });
-		}
-
-		this.__debug_calcClaimHash = (address) => 
-		{
-			let fmtArray = ['address'];
-			let pkgArray = [ address ];
-
-			const compare = (a,b) => { if (ethUtils.bufferToInt(a.nonce) > ethUtils.bufferToInt(b.nonce)) { return 1 } else { return -1 }; return 0 };
-
-			let winRcdSorted = this.winRecords[this.initHeight][address].sort(compare).slice(0, 10);
-
-			this.uniqRLP(winRcdSorted).map((txObj) => {
-				pkgArray.push(ethUtils.bufferToInt(txObj.submitBlock)); fmtArray.push('uint');
-				pkgArray.push(ethUtils.bufferToHex(txObj.ticket)); fmtArray.push('bytes32');
-			});
-
-			console.log('DEBUG: Claim Data Structure (fmtArray, pkgArray):');
-			console.dir(fmtArray); console.dir(pkgArray);
-
-			return {fmtArray, pkgArray};
 		}
 
 		this.calcClaimHash = (address) => 

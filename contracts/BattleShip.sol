@@ -212,7 +212,7 @@ contract BattleShip {
 	function getClaimHash(uint[] memory submitBlocks, uint[] memory winningTickets, bytes32[] memory genTickets) public view returns(bytes32 claimHash){
                 bytes memory packed = abi.encodePacked(bytes20(msg.sender));
                 for (uint i=0; i<winningTickets.length; i++){
-                        packed = abi.encodePacked(submitBlocks[i], genTickets[winningTickets[i]]);
+                        packed = abi.encodePacked(packed, submitBlocks[i], genTickets[winningTickets[i]]);
                 }
                 claimHash = keccak256(packed);
         }

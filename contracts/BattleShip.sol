@@ -193,7 +193,7 @@ contract BattleShip {
 		// bytes32[5] memory genTickets = generateTickets(score);
 		bytes32 claimHash;
 		if (debug4){
-		        claimHash = getClaimHash(winningTickets, submitBlocks, genTickets);
+		        claimHash = getClaimHash(submitBlocks, winningTickets, genTickets);
                 }
 
                 if (debug5){
@@ -209,14 +209,12 @@ contract BattleShip {
 		return true;
         }
 
-	function getClaimHash(uint[] memory winningTickets, uint[] memory submitBlocks, bytes32[] memory genTickets) public view returns(bytes32 claimHash){
-                bytes32[] memory claimHashElements;
-                claimHashElements[0] = bytes20(msg.sender);
+	function getClaimHash(uint[] memory submitBlocks, uint[] memory winningTickets, bytes32[] memory genTickets) public view returns(bytes32 claimHash){
+                bytes memory packed = abi.encodePacked(bytes20(msg.sender));
                 for (uint i=0; i<winningTickets.length; i++){
-                        claimHashElements[i*2+1] = bytes32(submitBlocks[i]);
-                        claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
+                        packed = abi.encodePacked(submitBlocks[i], genTickets[winningTickets[i]]);
                 }
-                claimHash = keccak256(abi.encodePacked(claimHashElements));
+                claimHash = keccak256(packed);
         }
 
         function verifyWinnumber(bytes32 _board, uint[] memory submitBlocks, uint[] memory winningTickets, bytes32[] memory genTickets) public view returns(bool){

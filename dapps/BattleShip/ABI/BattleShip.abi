@@ -408,11 +408,11 @@
     "constant": true,
     "inputs": [
       {
-        "name": "winningTickets",
+        "name": "submitBlocks",
         "type": "uint256[]"
       },
       {
-        "name": "submitBlocks",
+        "name": "winningTickets",
         "type": "uint256[]"
       },
       {

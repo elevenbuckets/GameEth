@@ -216,7 +216,7 @@ class BattleShip extends BladeIronClient {
 						console.log('Welcome, Defender!!! Please start new game!');
 						let board = ethUtils.bufferToHex(ethUtils.sha256(String(Math.random()) + 'ElevenBuckets'));
                                                 if (this.sendTickets > 0 && this.sendTickets < 4){  // cannot send more than 3 tickets
-                                                        board = '0x0' + '0'.repeat(this.sendTickets) + board.slice(2+this.sendTickets);
+                                                        board = '0x' + '0'.repeat(this.sendTickets) + board.slice(2+this.sendTickets);
                                                 }
 						this.sendTk(this.ctrName)('fortify')(board)(10000000000000000)
 						    .then((qid) => { this.defenderActions.fortify = true; return this.getReceipts(qid) })

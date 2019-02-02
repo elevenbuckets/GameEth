@@ -752,13 +752,13 @@ class BattleShip extends BladeIronClient {
 			let rlpObjs = rlplist.map((r) => { return r.toJSON() });
 			let sbklist = []; let tktlist = [];
 			rlpObjs.map((ro, idx) => { 
-				if (idx > 0 && ro.submitBlocks === sbklist[idx-1] && ro.ticket === tktlist[idx-1]) {
-					rlplist.splice(idx,1);
+				if (idx > 0 && ro.submitBlock === sbklist[idx-1] && ro.ticket === tktlist[idx-1]) {
+					rlplist[idx] = null;
 				}
-				sbklist.push(ro.submitBlocks); tktlist.push(ro.ticket); 
+				sbklist.push(ro.submitBlock); tktlist.push(ro.ticket); 
 			})
 
-			return rlplist;
+			return rlplist.filter((x) => { return x !== null });
 		}
 
 		this.calcClaimHash = (address) => 

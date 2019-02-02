@@ -415,21 +415,6 @@ class BattleShip extends BladeIronClient {
 			})
 		}
 
-		/*
-		this.sendClaim = (rlpx, channel) =>
-		{
-			return this.ipfs_pubsub_publish(channel, rlpx).then((rc) => { 
-				if (!rc) {
-					console.log(`Statge channel communication failed ... retrying ...`);
-					return setTimeout(this.sendClaim, 1100, rlpx, channel);
-				} else {
-					console.log(`Signed message broadcasted!!!`);
-					return rc;
-				}
-			});
-		}
-		*/
-
 		this.verify = (stats) => 
 		{
 			if (!this.gameStarted) return;
@@ -754,7 +739,7 @@ class BattleShip extends BladeIronClient {
 					rlplist.splice(idx,1);
 				}
 				sbklist.push(ro.submitBlocks); tktlist.push(ro.ticket); 
-			}
+			})
 
 			return rlplist;
 		}

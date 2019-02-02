@@ -145,20 +145,18 @@ contract BattleShip {
 	    string memory slots,
 	    uint blockNo,
 	    uint[] memory submitBlocks,  // the winning blocks the player claimed
-	    uint[] memory winningTickets, // the idx of generateTickets. same order as submitBlocks
+	    uint[] memory winningTickets, // the idx of generateTickets. same order as submitBlocks.
 	    bytes32[] memory proof,
 	    bool[] memory isLeft,
-	    bytes32 score,
-	    bytes32 claimHash
+	    bytes32 score
 	) public returns (bool) {
 		// require(playerDB[msg.sender].claimed == false, "already claimed");  // for debug
 		require(winningTickets.length <= 10, "you cannot claim more tickets");
 	        require(proof.length == isLeft.length, "len of proof/isLeft mismatch");
 	        require(winningTickets.length == submitBlocks.length, "submitBlocks and winningTickets mismatch");
-
+                require(battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot != bytes32(0), "no merkle root yet");
 		if (debug1){
-                        require(battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot != bytes32(0), "no merkle root yet");
-                        require(block.number > playerDB[msg.sender].initHeightJoined + period_all, "too early");
+                        require(block.number > playerDB[msg.sender].initHeightJoined + period_all + 1, "too early");
                         require(block.number < playerDB[msg.sender].initHeightJoined + period_all + 7, "too late");
                 }
 
@@ -185,25 +183,24 @@ contract BattleShip {
                         // require(keccak256(abi.encodePacked(_score))) == keccak256(abi.encodePacked(score)));
                         require(compareScore(secret, slots, blockNo, _board, score));
                 }
-                if (debug4){
-                        require(keccak256(abi.encodePacked(score)) == playerDB[msg.sender].scoreHash,
-                                "wrong score base on the given secret/blockNo");
-                }
+                require(keccak256(abi.encodePacked(score)) == playerDB[msg.sender].scoreHash,
+                        "wrong score base on the given secret/blockNo");
 
                 // generate "claimhash", which is hash(msg.sender, submitBlocks[i], winningTickets[i], ...) where i=0,1,2,...
 		// bytes32[5] memory genTickets = generateTickets(score);
 		bytes32[] memory genTickets = new bytes32[](getNumOfTickets(score));
 		genTickets = generateTickets(score, getNumOfTickets(score));
-                // bytes32[] memory claimHashElements;
-                // claimHashElements[0] = bytes20(msg.sender);
-                // for (uint i=0; i<winningTickets.length; i++){
-                //         claimHashElements[i*2+1] = bytes32(submitBlocks[i]);
-                //         claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
-                // }
-                // bytes32 claimHash = keccak256(abi.encodePacked(claimHashElements));
-                // require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)),
+                bytes32[] memory claimHashElements;
+		if (debug4){
+                        claimHashElements[0] = bytes20(msg.sender);
+                        for (uint i=0; i<winningTickets.length; i++){
+                                claimHashElements[i*2+1] = bytes32(submitBlocks[i]);
+                                claimHashElements[i*2+2] = bytes32(genTickets[winningTickets[i]]);
+                        }
+                }
+
                 if (debug5){
-                        require(merkleTreeValidator(proof, isLeft, claimHash,
+                        require(merkleTreeValidator(proof, isLeft, keccak256(abi.encodePacked(claimHashElements)),
                                                     battleHistory[playerDB[msg.sender].initHeightJoined].merkleRoot),
                                 "merkle proof failed");
                 }
@@ -217,18 +214,26 @@ contract BattleShip {
 
         function verifyWinnumber(bytes32 _board, uint[] memory submitBlocks, uint[] memory winningTickets, bytes32[] memory genTickets) public view returns(bool){
                 bytes32 winNumber;
+                uint prevBlock;
+                uint prevWinningTicket;
                 for (uint i=0; i<submitBlocks.length; i++){
+                            require(submitBlocks[i] >= prevBlock);
+                            if (submitBlocks[i] == prevBlock){
+                                    require(winningTickets[i] > prevWinningTicket);
+                            }
                             winNumber = keccak256(abi.encodePacked(_board, blockhash(submitBlocks[i])));
                             if (uint8(winNumber[31])%16 != uint8(genTickets[winningTickets[i]][31])%16 ){
                                     return false;
                             }
                             // require(winNumber[31] == genTickets[winningTickets[i]][31]);  // last 1 byte = 2 digits of hex
-                            // require(winNumber[31] == genTickets[winningTickets[i]][31] && 
+                            // require(winNumber[31] == genTickets[winningTickets[i]][31] &&
                             //         uint(winNumber[30])%16 == uint(genTickets[winningTickets[i]][30])%16 );  // last 3 digits of hex
-                            // require(winNumber[31] == genTickets[winningTickets[i]][31] && 
+                            // require(winNumber[31] == genTickets[winningTickets[i]][31] &&
                             //         winNumber[30] == genTickets[winningTickets[i]][30]);  // last 4 digits of hex
 
                             // require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+                            prevBlock = submitBlocks[i];
+                            prevWinningTicket = winningTickets[i];
                 }
                 return true;
         }
@@ -337,7 +342,7 @@ contract BattleShip {
         }
 
 	function submitMerkleRoot(uint _initHeight, bytes32 _merkleRoot, string memory _ipfsAddr) public ValidatorOnly returns (bool) {
-		require(block.number >= _initHeight + period_all && block.number <= _initHeight + period_all + 3);
+		require(block.number >= _initHeight + period_all && block.number <= _initHeight + period_all + 4);
 	        battleHistory[_initHeight]= battleStat(_merkleRoot, _ipfsAddr);
 	        ticketSeed = blockhash(_initHeight+8);
 	        return true;

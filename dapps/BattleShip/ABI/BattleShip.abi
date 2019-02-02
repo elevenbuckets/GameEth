@@ -390,10 +390,6 @@
       {
         "name": "score",
         "type": "bytes32"
-      },
-      {
-        "name": "claimHash",
-        "type": "bytes32"
       }
     ],
     "name": "claimLotteReward",
@@ -406,7 +402,7 @@
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
-    "signature": "0xbabb3b13"
+    "signature": "0x76125212"
   },
   {
     "constant": true,

@@ -3,6 +3,7 @@ pragma solidity ^0.5.2;
 // import "./ERC20.sol";
 import "./SafeMath.sol";
 // import "./RNTInterface.sol";
+// import "./ERC721/tokens/erc721.sol";  // interface
 
 // About the game
 // # Roles
@@ -29,6 +30,7 @@ contract BattleShip {
 	address public winner;
 	address public validator;
 	// address public RNTAddr;
+	// address public ERTAddr;
 	uint constant public maxPlayer = 1000;
 	uint constant public period_all = 30;  // 7 + 3 + 20
 	uint public initHeight;
@@ -107,6 +109,7 @@ contract BattleShip {
 		defender = msg.sender;
 		validator = msg.sender;
 		// RNTAddr  = _RNTAddr;
+		// ERTAddr  = _ERTAddr;
 
 		require(fortify(_init) == true);
 	}
@@ -120,6 +123,7 @@ contract BattleShip {
 
 		uint256 reward = uint256(address(this).balance).mul(uint256(6)) / uint256(10);
 		// require(RNTInterface(RNTAddr).mint(msg.sender) == true);
+		// require(ERC721(RNTAddr).mint(msg.sender) == true);
 		require(msg.sender.send(reward) == true);
 		return true;
 	}

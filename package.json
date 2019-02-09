@@ -18,6 +18,6 @@
     "level": "^4.0.0",
     "merkle_tree": "git+ssh://git@github.com/elevenbuckets/merkle_tree.git",
     "mkdirp": "^0.5.1",
-    "truffle": "^4.1.15"
+    "truffle": "^5.0.2"
   }
 }

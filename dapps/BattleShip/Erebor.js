@@ -47,11 +47,11 @@ const mkdir_promise = (dirpath) =>
 	return new Promise(__mkdirp(dirpath));
 }
 
-class BattleShip extends BladeIronClient {
+class Erebor extends BladeIronClient {
 	constructor(rpcport, rpchost, options)
         {
 		super(rpcport, rpchost, options);
-		this.ctrName = 'BattleShip';
+		this.ctrName = 'Erebor';
 		this.secretBank = ['The','Times','03','Jan','2009','Chancellor','on','brink','of','second','bailout','for','banks'];
 		this.target = '0x0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffff';
 		this.address = this.configs.account;
@@ -745,7 +745,7 @@ class BattleShip extends BladeIronClient {
 			.catch((err) => { console.log(`ERROR in verifyClaimHash`); console.trace(err); });
 		}
 
-		// Specific for BattleShip RLP fields!!!
+		// Specific for Erebor RLP fields!!!
 		// This function is only used *AFTER* the input list has been sorted !!!!
 		this.uniqRLP = (rlplist) => 
 		{
@@ -920,4 +920,4 @@ class BattleShip extends BladeIronClient {
 	}
 }
 
-module.exports = BattleShip;
+module.exports = Erebor;

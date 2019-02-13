@@ -1,11 +1,11 @@
 module.exports = 
 {
-	BattleShip_withdraw_sanity(addr, jobObj) 
+	Erebor_withdraw_sanity(addr, jobObj) 
 	{
 		return true;
 	},
 
-	BattleShip_fortify_sanity(addr, jobObj)
+	Erebor_fortify_sanity(addr, jobObj)
 	{
 		if ( addr === this.CUE[jobObj.type][jobObj.contract].defender()
 		  && jobObj.txObj.value >= this.CUE[jobObj.type][jobObj.contract].fee()
@@ -17,17 +17,17 @@ module.exports =
 		}
 	},
 
-	BattleShip_challenge_sanity(addr, jobObj)
+	Erebor_challenge_sanity(addr, jobObj)
 	{
 		return true;
 	},
 
-	BattleShip_claimLotteReward_sanity(addr, jobObj)
+	Erebor_claimLotteReward_sanity(addr, jobObj)
 	{
 		return true;
 	},
 
-	BattleShip_submitMerkleRoot_sanity(addr, jobObj)
+	Erebor_submitMerkleRoot_sanity(addr, jobObj)
 	{
 		return true;
 	}

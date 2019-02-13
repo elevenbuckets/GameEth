@@ -211,10 +211,9 @@ contract Erebor{
                 // determine the only winner who win a Elemire
                 // TODO: better ways to determine the only winner of NFT
                 if (winningTickets.length > 3) {  // '3' for debug only
-                        string memory uri = "";
+                        string memory uri = bytes32ToString(claimHash);
                         require(iELEM(ELEMAddr).mint(msg.sender, uint(claimHash), uri) == true);
                 }
-
 
 		return true;
         }
@@ -407,6 +406,28 @@ contract Erebor{
                 }
 		return out;
 	}
+
+        function hexToChar(byte _b) internal pure returns (byte c) {
+                // convert a hex value (0-f) to it's corresponding string
+                if (uint8(_b) < 10) {
+                        return byte(uint8(_b) + 0x30);  // '0' to '9'
+                } else {
+                        return byte(uint8(_b) + 0x57);  // 'a' to 'z'
+                }
+        }
+
+        // convert bytes32 to hex "string"
+        function bytes32ToString(bytes32 b32) public pure returns (string memory out) {
+                bytes memory s = new bytes(64);
+                for (uint8 i = 0; i < 32; i++) {
+                        byte _b = byte(b32[i]);
+                        byte hi = byte(uint8(_b) / 16);
+                        byte lo = byte(uint8(_b) - 16 * uint8(hi));
+                        s[i*2] = hexToChar(hi);
+                        s[i*2+1] = hexToChar(lo);            
+                }
+                out = string(s);
+        }
 
         // upgrade and ownership
         function newValidator(address _newValidator) public defenderOnly returns (bool){

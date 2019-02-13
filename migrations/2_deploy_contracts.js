@@ -13,7 +13,7 @@ module.exports = function(deployer) {
     deployer.link(StandardToken, RNT);
     let ELEMAddr = '0x5c0C5B0E0f93D7e15C67E76153111cEAC6d17AAc';
     deployer.deploy(MemberShip, ELEMAddr);
-    deployer.deploy(RNT).then(() => {
+    deployer.deploy(RNT).then((iRNT) => {
         let RNTAddr = RNT.address;
         let memberContractAddr = MemberShip.address;
         return deployer.deploy(
@@ -24,7 +24,7 @@ module.exports = function(deployer) {
             memberContractAddr,
             {value: '10000000000000000'}).then(() => {
                 let EreborAddr = Erebor.address;
-                return RNT.at(RNTAddr).setMining(EreborAddr).then(() => {
+                return iRNT.setMining(EreborAddr).then(() => {
                     return {RNTAddr, EreborAddr}
                 })
             })

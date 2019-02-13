@@ -2,6 +2,21 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "RNTAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x06491eff"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "difficulty",
     "outputs": [
       {
@@ -43,6 +58,30 @@
     "stateMutability": "view",
     "type": "function",
     "signature": "0x3a5381b5"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "battleHistory",
+    "outputs": [
+      {
+        "name": "merkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "name": "ipfsAddr",
+        "type": "string"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x4ccc616d"
   },
   {
     "constant": true,
@@ -167,6 +206,21 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "ELEMAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x885869dc"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "debug5",
     "outputs": [
       {
@@ -242,6 +296,21 @@
   {
     "constant": true,
     "inputs": [],
+    "name": "memberContractAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xc170f356"
+  },
+  {
+    "constant": true,
+    "inputs": [],
     "name": "prevboard",
     "outputs": [
       {
@@ -285,10 +354,50 @@
     "signature": "0xdfbf53ae"
   },
   {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "playerDB",
+    "outputs": [
+      {
+        "name": "initHeightJoined",
+        "type": "uint256"
+      },
+      {
+        "name": "scoreHash",
+        "type": "bytes32"
+      },
+      {
+        "name": "claimed",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xfa3cb11f"
+  },
+  {
     "inputs": [
       {
         "name": "_init",
         "type": "bytes32"
+      },
+      {
+        "name": "_RNTAddr",
+        "type": "address"
+      },
+      {
+        "name": "_ELEMAddr",
+        "type": "address"
+      },
+      {
+        "name": "_memberContracAddr",
+        "type": "address"
       }
     ],
     "payable": true,
@@ -300,21 +409,6 @@
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "fallback"
-  },
-  {
-    "constant": false,
-    "inputs": [],
-    "name": "withdraw",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function",
-    "signature": "0x3ccfd60b"
   },
   {
     "constant": false,
@@ -345,12 +439,7 @@
       }
     ],
     "name": "debugParams",
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool"
-      }
-    ],
+    "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
@@ -433,7 +522,7 @@
     "signature": "0x6903be12"
   },
   {
-    "constant": true,
+    "constant": false,
     "inputs": [
       {
         "name": "_board",
@@ -460,7 +549,7 @@
       }
     ],
     "payable": false,
-    "stateMutability": "view",
+    "stateMutability": "nonpayable",
     "type": "function",
     "signature": "0x113097ad"
   },
@@ -801,6 +890,26 @@
     "signature": "0xa1ef91d8"
   },
   {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "b32",
+        "type": "bytes32"
+      }
+    ],
+    "name": "bytes32ToString",
+    "outputs": [
+      {
+        "name": "out",
+        "type": "string"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "pure",
+    "type": "function",
+    "signature": "0x9201de55"
+  },
+  {
     "constant": false,
     "inputs": [
       {
@@ -839,5 +948,65 @@
     "stateMutability": "nonpayable",
     "type": "function",
     "signature": "0xed958671"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newAddr",
+        "type": "address"
+      }
+    ],
+    "name": "newRNTAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0xbdefa88a"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_newAddr",
+        "type": "address"
+      }
+    ],
+    "name": "newELEMAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x9fe7758a"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "newMemberAddr",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x6cf6d757"
   }
 ]

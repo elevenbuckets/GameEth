@@ -4,6 +4,7 @@ pragma solidity ^0.5.2;
 import "./SafeMath.sol";
 import "./RNTInterface.sol";
 import "./ELEMInterface.sol";
+import "./MemberShip.sol";
 
 // About the game
 // # Roles
@@ -31,6 +32,7 @@ contract Erebor{
 	address public validator;
 	address public RNTAddr;
 	address public ELEMAddr;
+	address public memberContractAddr;
 	uint constant public maxPlayer = 1000;
 	uint constant public period_all = 30;  // 7 + 3 + 20
 	uint public initHeight;
@@ -56,8 +58,8 @@ contract Erebor{
         bytes32 public board;
         bytes32 public prevboard;
 
-	mapping (address => playerInfo) playerDB;
-	mapping (uint => battleStat) battleHistory;
+	mapping (address => playerInfo) public playerDB;
+	mapping (uint => battleStat) public battleHistory;
 
 	// Modifiers
 	modifier defenderOnly() {
@@ -85,6 +87,16 @@ contract Erebor{
 		_;
 	}
 
+	modifier isActiveMember(){
+                require(MemberShip(memberContractAddr).addrIsActiveMember(msg.sender));
+                _;
+        }
+
+	// modifier isActiveMemberOrpaid(){
+                // require(MemberShip(memberContractAddr).addrIsActiveMember(msg.sender));
+                // _;
+        // }
+
 	modifier gameStarted() {
 		require(setup == true);
 		_;
@@ -102,12 +114,13 @@ contract Erebor{
 	}
 
 	// Contract constructor
-	constructor(bytes32 _init, address _RNTAddr, address _ELEMAddr) public payable {
+	constructor(bytes32 _init, address _RNTAddr, address _ELEMAddr, address _memberContracAddr) public payable {
 		require(msg.value >= fee);
 		defender = msg.sender;
 		validator = msg.sender;
 		RNTAddr  = _RNTAddr;
                 ELEMAddr = _ELEMAddr;
+                memberContractAddr = _memberContracAddr;
 
 		require(fortify(_init) == true);
 	}
@@ -197,10 +210,10 @@ contract Erebor{
 
                 // determine the only winner who win a Elemire
                 // TODO: better ways to determine the only winner of NFT
-                // if (winningTickets.length > 3 ){  // '3' for debug only
-                //         string memory uri = '';
-                //         require(iELEM(ELEMAddr).mint(msg.sender, uint(claimHash), uri) == true);
-                // }
+                if (winningTickets.length > 3) {  // '3' for debug only
+                        string memory uri = "";
+                        require(iELEM(ELEMAddr).mint(msg.sender, uint(claimHash), uri) == true);
+                }
 
 
 		return true;
@@ -274,7 +287,7 @@ contract Erebor{
 		return (playerDB[_addr].initHeightJoined, playerDB[_addr].scoreHash, playerDB[_addr].claimed);
 	}
 
-	function fortify(bytes32 defense) public payable feePaid defenderOnly NewGameOnly returns (bool) {
+	function fortify(bytes32 defense) public payable defenderOnly NewGameOnly returns (bool) {
 		require(defense > difficulty);
 
 		initHeight = block.number;
@@ -290,7 +303,7 @@ contract Erebor{
 	}
 
 	// Join game
-	function challenge(bytes32 scoreHash) public payable feePaid notDefender gameStarted returns (bool) {
+	function challenge(bytes32 scoreHash) public payable isActiveMember notDefender gameStarted returns (bool) {
 		require(playerDB[msg.sender].initHeightJoined < initHeight, "challange: 1");
 		require(block.number > initHeight + 7 && block.number <= initHeight + 10, "challange: 2");
 		require(playercount + 1 <= maxPlayer, "challange: 3");
@@ -416,6 +429,11 @@ contract Erebor{
 
         function newELEMAddr(address _newAddr) public defenderOnly returns (bool){
                 ELEMAddr = _newAddr;
+                return true;
+        }
+
+        function newMemberAddr(address _addr) public defenderOnly returns (bool){
+                memberContractAddr = _addr;
                 return true;
         }
 

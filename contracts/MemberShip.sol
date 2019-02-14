@@ -6,7 +6,7 @@ import "./ELEMInterface.sol";
 
 contract MemberShip {
     address public owner;
-    address[3] public coreManagers;
+    address[3] public coreManager;
     address public ELEMAddr;
     uint public fee = 10000000000000000;
     uint public memberPeriod = 40000;  // 40000 blocks ~ a week in rinkeby, for test only
@@ -29,12 +29,12 @@ contract MemberShip {
 
     constructor(address _ELEMAddr) public {
         owner = msg.sender;
-        coreManagers = [0xB440ea2780614b3c6a00e512f432785E7dfAFA3E,
+        coreManager = [0xB440ea2780614b3c6a00e512f432785E7dfAFA3E,
                         0x4AD56641C569C91C64C28a904cda50AE5326Da41,
                         0x362ea687b8a372a0235466a097e578d55491d37f];
         ELEMAddr = _ELEMAddr;
         // RNTAddr  = _RNTAddr;
-        // allocate membership here?
+        // allocate membership in migration file
     }
 
     modifier ownerOnly() {
@@ -43,12 +43,12 @@ contract MemberShip {
     }
 
     modifier coreManagerOnly() {
-        require(msg.sender == coreManagers[0] || msg.sender == coreManagers[1] || msg.sender == coreManagers[2]);
+        require(msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]);
         _;
     }
 
     modifier managerOnly(uint _tokenId) {
-        require(msg.sender == coreManagers[0] || msg.sender == coreManagers[1] || msg.sender == coreManagers[2]
+        require(msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]
                 || _tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0);
         // uint256(0x1111111111111111111111111111111111111111111111111111111111111111 = 7.71947....e72
         _;
@@ -68,7 +68,9 @@ contract MemberShip {
 
     modifier isActiveMember(uint _tokenId) {
         require(memberDB[_tokenId].addr == msg.sender && msg.sender != address(0));
-        require(memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number);
+        require(memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number
+                || msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]
+                || _tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0);
         // is it possible that penalty >= since or block.number?
         _;
     }
@@ -111,17 +113,23 @@ contract MemberShip {
         _;
     }
 
-    function allocateCoreManagersNFT() internal ownerOnly {
-        // allocate NFT to coreManagers, only run it in constructor
-        iELEM(ELEMAddr).mint(coreManagers[0],
-                             uint(0x1111111111111111111111111111111111111111111111111111111111111111),
-                             "1111111111111111111111111111111111111111111111111111111111111111");
-        iELEM(ELEMAddr).mint(coreManagers[1],
-                             uint(0x2222222222222222222222222222222222222222222222222222222222222222),
-                             "2222222222222222222222222222222222222222222222222222222222222222");
-        iELEM(ELEMAddr).mint(coreManagers[2],
-                             uint(0x3333333333333333333333333333333333333333333333333333333333333333),
-                             "3333333333333333333333333333333333333333333333333333333333333333");
+    function allocateCoreManagersNFT() public ownerOnly {
+        // allocate NFT to coreManager, only run it in constructor
+        uint[3] memory _tickets = [ uint(0x1111111111111111111111111111111111111111111111111111111111111111),
+                                    uint(0x2222222222222222222222222222222222222222222222222222222222222222),
+                                    uint(0x3333333333333333333333333333333333333333333333333333333333333333)];
+        string[3] memory  _uris = [ "1111111111111111111111111111111111111111111111111111111111111111",
+                                    "2222222222222222222222222222222222222222222222222222222222222222",
+                                    "3333333333333333333333333333333333333333333333333333333333333333"];
+        // This contract may be updated while the token contract is not;
+        // assume coreManager never transfer their first token (the _tickets)
+        for (uint i=0; i<3; i++){
+            if (iELEM(ELEMAddr).balanceOf(coreManager[i]) == 0) {
+                iELEM(ELEMAddr).mint(coreManager[i], _tickets[i], _uris[i]);
+                memberDB[_tickets[i]] = MemberInfo(coreManager[i], block.number, 0, bytes32(0), "");
+                addressToId[coreManager[i]] = _tickets[i];
+            }
+        }
     }
 
     // use "putNFTForSale()", "canTradeToken=true", "buyToken", and "transferToken" before the "trading"
@@ -248,7 +256,10 @@ contract MemberShip {
     function addrIsActiveMember(address _addr) public view returns (bool) {
         require(_addr != address(0));
         uint _tokenId = addressToId[_addr];
-        if (_tokenId != 0 && memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number) {
+        if (_tokenId != 0 && memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number
+            || msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]
+            || _tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0)
+        {
             return true;
         }
         return false;
@@ -263,7 +274,10 @@ contract MemberShip {
     }
 
     function tokenIsActiveMember(uint _tokenId) public view returns (bool) {
-        if (memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number) {
+        if (memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number
+            || msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]
+            || _tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0)
+        {
             return true;
         } else {
             return false;

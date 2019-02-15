@@ -1,6 +1,26 @@
 [
   {
     "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "coreManager",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0x0d0d80ad"
+  },
+  {
+    "constant": true,
     "inputs": [],
     "name": "canTradeToken",
     "outputs": [
@@ -76,26 +96,6 @@
   },
   {
     "constant": true,
-    "inputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "coreManagers",
-    "outputs": [
-      {
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function",
-    "signature": "0xcc523d37"
-  },
-  {
-    "constant": true,
     "inputs": [],
     "name": "fee",
     "outputs": [
@@ -140,6 +140,16 @@
     "stateMutability": "nonpayable",
     "type": "constructor",
     "signature": "constructor"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "allocateCoreManagersNFT",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0xe7682200"
   },
   {
     "constant": false,
@@ -500,6 +510,38 @@
     "stateMutability": "view",
     "type": "function",
     "signature": "0x43ddfd57"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "_tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getMemberInfo",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xae99aa3c"
   },
   {
     "constant": false,

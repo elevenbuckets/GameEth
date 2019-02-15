@@ -48,8 +48,8 @@ contract MemberShip {
     }
 
     modifier managerOnly(uint _tokenId) {
-        require(msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]
-                || _tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0);
+        require(_tokenId != 0 && (msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]
+                || _tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0));
         // uint256(0x1111111111111111111111111111111111111111111111111111111111111111 = 7.71947....e72
         _;
     }
@@ -71,6 +71,7 @@ contract MemberShip {
         require(memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number
                 || msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]
                 || _tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0);
+        // require(_tokenId != 0);  // already excluded by first condition
         // is it possible that penalty >= since or block.number?
         _;
     }
@@ -118,9 +119,9 @@ contract MemberShip {
         uint[3] memory _tickets = [ uint(0x1111111111111111111111111111111111111111111111111111111111111111),
                                     uint(0x2222222222222222222222222222222222222222222222222222222222222222),
                                     uint(0x3333333333333333333333333333333333333333333333333333333333333333)];
-        string[3] memory  _uris = [ "1111111111111111111111111111111111111111111111111111111111111111",
-                                    "2222222222222222222222222222222222222222222222222222222222222222",
-                                    "3333333333333333333333333333333333333333333333333333333333333333"];
+        string[3] memory _uris = [ "1111111111111111111111111111111111111111111111111111111111111111",
+                                   "2222222222222222222222222222222222222222222222222222222222222222",
+                                   "3333333333333333333333333333333333333333333333333333333333333333"];
         // This contract may be updated while the token contract is not;
         // assume coreManager never transfer their first token (the _tickets)
         for (uint i=0; i<3; i++){
@@ -135,7 +136,7 @@ contract MemberShip {
     // use "putNFTForSale()", "canTradeToken=true", "buyToken", and "transferToken" before the "trading"
     // contract and the corresponding state channel are implemented
     function putNFTForSale(uint _tokenId) public coreManagerOnly isNFTOwner(_tokenId) isNotSpecialToken(_tokenId) {
-        iELEM(ELEMAddr).safeTransferFrom(msg.sender, address(this), _tokenId);
+        iELEM(ELEMAddr).transferFrom(msg.sender, address(this), _tokenId);
     }
 
     function tradeTokenToggle() public coreManagerOnly returns (bool) {
@@ -149,7 +150,7 @@ contract MemberShip {
         require(iELEM(ELEMAddr).balanceOf(msg.sender) == 0);  // buyer has no NFT
         require(addressToId[msg.sender] == 0);  // buyer is not a member
         uint _tokenId = iELEM(ELEMAddr).tokenOfOwnerByIndex(address(this), 0);
-        iELEM(ELEMAddr).safeTransferFrom(address(this), msg.sender, _tokenId);
+        iELEM(ELEMAddr).transferFrom(address(this), msg.sender, _tokenId);
         return true;
     }
 
@@ -160,17 +161,20 @@ contract MemberShip {
     ) public isMember(_tokenId) isNFTOwner(_tokenId) whenNotPaused returns (bool) {
         require(canTradeToken == true);
         require(memberDB[_tokenToTransfer].since == 0 && memberDB[_tokenToTransfer].addr == address(0));
-        require(iELEM(ELEMAddr).balanceOf(msg.sender) == 0);  // receiver has no NFT
-        require(addressToId[_receiver] == 0);  // receiver is not a member
-        iELEM(ELEMAddr).safeTransferFrom(msg.sender, _receiver, _tokenToTransfer);
+        // comment below 2 lines for debug purpose
+        // require(iELEM(ELEMAddr).balanceOf(_receiver) == 0);  // receiver has no NFT
+        // require(addressToId[_receiver] == 0);  // receiver is not a member
+        iELEM(ELEMAddr).transferFrom(msg.sender, _receiver, _tokenToTransfer);
         return true;
     }
 
     // membership
-    function bindMembership(uint _tokenId) public isNFTOwner(_tokenId) isNotManagerToken(_tokenId) whenNotPaused returns (bool) {
+    function bindMembership(uint _tokenId) public isNFTOwner(_tokenId) whenNotPaused returns (bool) {
         require(memberDB[_tokenId].since == 0 && memberDB[_tokenId].addr == address(0));
         require(addressToId[msg.sender] == 0);  // the address is not yet bind to any NFT id
-        // require ...
+        // note: for now, if one obtain and bind a special token, then he or she become a "manager",
+        //       i.e., always a active member, can write kycid/notes of other member and so on
+        // note: coreManager are always activeMember, whether bind or not
         memberDB[_tokenId] = MemberInfo(msg.sender, block.number, 0, bytes32(0), "");
         addressToId[msg.sender] = _tokenId;
         return true;
@@ -246,7 +250,12 @@ contract MemberShip {
     // some query functions
     function addrIsMember(address _addr) public view returns (bool) {
         require(_addr != address(0));
-        if (addressToId[_addr] != 0) {
+        uint _tokenId = addressToId[_addr];
+        if (msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]){
+            return true;  // core managers
+        } else if (_tokenId != 0 && (_tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0)) {
+            return true;  // other managers
+        } else if (addressToId[_addr] != 0) {
             return true;
         } else {
             return false;
@@ -256,13 +265,15 @@ contract MemberShip {
     function addrIsActiveMember(address _addr) public view returns (bool) {
         require(_addr != address(0));
         uint _tokenId = addressToId[_addr];
-        if (_tokenId != 0 && memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number
-            || msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]
-            || _tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0)
-        {
-            return true;
+        if (msg.sender == coreManager[0] || msg.sender == coreManager[1] || msg.sender == coreManager[2]){
+            return true;  // core managers
+        } else if (_tokenId != 0 && (_tokenId % 7719472615821079694904732333912527190217998977709370935963838933860875309329 == 0)) {
+            return true;  // other managers
+        } else if (memberDB[_tokenId].since + memberPeriod - memberDB[_tokenId].penalty > block.number) {
+            return true;  // not yet expire
+        } else {
+            return false;
         }
-        return false;
     }
 
     function tokenIsMember(uint _tokenId) public view returns (bool) {
@@ -286,6 +297,11 @@ contract MemberShip {
 
     function addrToTokenId(address _addr) external view returns (uint) {
         return addressToId[_addr];
+    }
+
+    function getMemberInfo(uint _tokenId) external view returns (address, uint, uint, bytes32) {
+        require(memberDB[_tokenId].addr != address(0));
+        return (memberDB[_tokenId].addr, memberDB[_tokenId].since, memberDB[_tokenId].penalty, memberDB[_tokenId].kycid);
     }
 
     // upgradable

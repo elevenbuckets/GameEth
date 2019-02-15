@@ -12,7 +12,8 @@ var MemberShip = artifacts.require("MemberShip");
 // fs.copyFileSync("../Elemmire.json", "../build/contracts/Elemmire.json");
 const iELEM = require("../Elemmire.json");  
 const w3 = new Web3();  // this is web3 0.19
-w3.setProvider(new Web3.providers.HttpProvider('http://172.17.0.2:8545'));
+// w3.setProvider(new Web3.providers.HttpProvider('http://172.17.0.2:8545'));  // for docker
+w3.setProvider(new Web3.providers.HttpProvider('http://127.0.0.1:8545'));
 const dELEM = w3.eth.contract(iELEM.abi).at(iELEM.networks[4].address);
 
 module.exports = function(deployer) {
@@ -20,7 +21,7 @@ module.exports = function(deployer) {
     deployer.link(SafeMath, [StandardToken, RNT, Erebor]);
     deployer.deploy(StandardToken);
     deployer.link(StandardToken, RNT);
-    let ELEMAddr = '0x5c0C5B0E0f93D7e15C67E76153111cEAC6d17AAc';
+    let ELEMAddr = '0x6d6327c5d56E1C2b848bca19ef55E05aDc2997f2';
     deployer.deploy(MemberShip, ELEMAddr).then( (iMemberShip) => {
         return dELEM.setMining(MemberShip.address, 0, {from: w3.eth.accounts[0]}, (err, r) => {
             if (err) { console.trace(err); throw "bad" };

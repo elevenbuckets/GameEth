@@ -142,8 +142,8 @@ contract Erebor{
 
         // for debug purpose
 	bool public debug1 = false;
-	bool public debug2 = true;
-	bool public debug3 = true;
+	bool public debug2 = false;
+	bool public debug3 = false;
 	bool public debug4 = true;
 	bool public debug5 = true;
 	bool public debug6 = true;
@@ -206,13 +206,17 @@ contract Erebor{
                         "merkle proof failed");
 
                 // count number of winning tickets and mint RNT
-                require(verifyWinnumber(_board, submitBlocks, winningTickets, genTickets) == true, "found a wrong ticket");
+                if (debug2) {
+                    require(verifyWinnumber(_board, submitBlocks, winningTickets, genTickets) == true, "found a wrong ticket");
+                }
 
                 // determine the only winner who win a Elemire
                 // TODO: better ways to determine the only winner of NFT
-                if (winningTickets.length > 3) {  // '3' for debug only
-                        string memory uri = bytes32ToString(claimHash);
-                        require(iELEM(ELEMAddr).mint(msg.sender, uint(claimHash), uri) == true);
+                if (debug3) {
+                    if (winningTickets.length > 3) {  // '3' for debug only
+                            string memory uri = bytes32ToString(claimHash);
+                            iELEM(ELEMAddr).mint(msg.sender, uint(claimHash), uri);
+                    }
                 }
 
 		return true;
@@ -341,7 +345,7 @@ contract Erebor{
 
                 bytes32 targetHash = targetLeaf;
                 for (uint256 i = 0; i < proof.length; i++) {
-                        bytes32 proofEle = proof[i]; 
+                        bytes32 proofEle = proof[i];
                         if (isLeft[i]) {
                                 targetHash = keccak256(abi.encodePacked(proofEle, targetHash));
                         } else if (!isLeft[i]) {
@@ -360,7 +364,7 @@ contract Erebor{
 
                 // reset the status of previous game (or put it in challange?)
 	        // NFTClaimed = false;   // reset the status of previous game
-	        // winner = address(0);
+	        winner = address(0);
 	        return true;
         }
 
@@ -424,7 +428,7 @@ contract Erebor{
                         byte hi = byte(uint8(_b) / 16);
                         byte lo = byte(uint8(_b) - 16 * uint8(hi));
                         s[i*2] = hexToChar(hi);
-                        s[i*2+1] = hexToChar(lo);            
+                        s[i*2+1] = hexToChar(lo);
                 }
                 out = string(s);
         }
@@ -459,12 +463,12 @@ contract Erebor{
         }
 
         // fallback
-        function () defenderOnly gameStalled external { 
-            winner = defender; 
+        function () defenderOnly gameStalled external {
+            winner = address(0);
             setup = false;
             // board = bytes32(0);
             playercount = 0;
             // require(withdraw());
-	    require(msg.sender.send(address(this).balance) == true);  // for debug
+	    // require(msg.sender.send(address(this).balance) == true);  // for debug
         }
 }

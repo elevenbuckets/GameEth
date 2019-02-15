@@ -30,5 +30,11 @@ module.exports =
 	Erebor_submitMerkleRoot_sanity(addr, jobObj)
 	{
 		return true;
-	}
+        },
+
+	Erebor_debugParams_sanity(addr, jobObj)
+	{
+		return true;
+        }
+    
 }

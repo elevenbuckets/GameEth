@@ -250,6 +250,7 @@ interface iELEM
     function burn(uint256 _tokenId) external;
     function pause() external;
     function unpause() external;
+    function setMemberCtrAddr(address _memberCtrAddr) external returns (bool);
     function setMining(address miningAddress, uint8 idx) external returns (bool);
     function addManager(address _newAddr, uint8 idx) external returns (bool);
     function queryMining(uint idx) external view returns (address);

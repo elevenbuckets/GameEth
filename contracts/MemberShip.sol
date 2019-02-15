@@ -114,19 +114,19 @@ contract MemberShip {
         _;
     }
 
-    function allocateCoreManagersNFT() public ownerOnly {
-        // allocate NFT to coreManager, only run it in constructor
+    function allocateCoreManagers() public ownerOnly {
+        // core members already allocate NFTs:
+        //      uint(0x1111111111111111111111111111111111111111111111111111111111111111)
+        //      uint(0x2222222222222222222222222222222222222222222222222222222222222222)
+        //      uint(0x3333333333333333333333333333333333333333333333333333333333333333)
+
         uint[3] memory _tickets = [ uint(0x1111111111111111111111111111111111111111111111111111111111111111),
                                     uint(0x2222222222222222222222222222222222222222222222222222222222222222),
                                     uint(0x3333333333333333333333333333333333333333333333333333333333333333)];
-        string[3] memory _uris = [ "1111111111111111111111111111111111111111111111111111111111111111",
-                                   "2222222222222222222222222222222222222222222222222222222222222222",
-                                   "3333333333333333333333333333333333333333333333333333333333333333"];
         // This contract may be updated while the token contract is not;
         // assume coreManager never transfer their first token (the _tickets)
         for (uint i=0; i<3; i++){
             if (iELEM(ELEMAddr).balanceOf(coreManager[i]) == 0) {
-                iELEM(ELEMAddr).mint(coreManager[i], _tickets[i], _uris[i]);
                 memberDB[_tickets[i]] = MemberInfo(coreManager[i], block.number, 0, bytes32(0), "");
                 addressToId[coreManager[i]] = _tickets[i];
             }

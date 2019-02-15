@@ -144,12 +144,12 @@
   {
     "constant": false,
     "inputs": [],
-    "name": "allocateCoreManagersNFT",
+    "name": "allocateCoreManagers",
     "outputs": [],
     "payable": false,
     "stateMutability": "nonpayable",
     "type": "function",
-    "signature": "0xe7682200"
+    "signature": "0x45c05615"
   },
   {
     "constant": false,

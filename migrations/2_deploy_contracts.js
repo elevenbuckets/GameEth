@@ -21,11 +21,11 @@ module.exports = function(deployer) {
     deployer.link(SafeMath, [StandardToken, RNT, Erebor]);
     deployer.deploy(StandardToken);
     deployer.link(StandardToken, RNT);
-    let ELEMAddr = '0x6d6327c5d56E1C2b848bca19ef55E05aDc2997f2';
-    deployer.deploy(MemberShip, ELEMAddr).then( (iMemberShip) => {
-        return dELEM.setMining(MemberShip.address, 0, {from: w3.eth.accounts[0]}, (err, r) => {
+    let ELEMAddr = '0x84C6702D2E4F066E2507D6FAE6ed7a4aBCbBab6b';
+    deployer.deploy(MemberShip, ELEMAddr).then( () => {
+        return dELEM.setMemberCtrAddr(MemberShip.address, {from: w3.eth.accounts[0]}, (err, r) => {
             if (err) { console.trace(err); throw "bad" };
-            return iMemberShip.allocateCoreManagersNFT();
+            // return iMemberShip.allocateCoreManagersNFT();
         })
     });
     deployer.deploy(RNT).then((iRNT) => {
@@ -39,7 +39,7 @@ module.exports = function(deployer) {
             memberContractAddr,
             {value: '10000000000000000'}).then(() => {
                 let EreborAddr = Erebor.address;
-                dELEM.setMining(EreborAddr, 1, {from: w3.eth.accounts[0]}, (err,r) => {
+                dELEM.setMining(EreborAddr, 0, {from: w3.eth.accounts[0]}, (err,r) => {
                     if (err) { console.trace(err); throw "bad2" };
                     console.log(`setMining for EreborAddr`)
                 })

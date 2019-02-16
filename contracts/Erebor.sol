@@ -142,8 +142,8 @@ contract Erebor{
 
         // for debug purpose
 	bool public debug1 = false;
-	bool public debug2 = false;
-	bool public debug3 = false;
+	bool public debug2 = true;
+	bool public debug3 = true;
 	bool public debug4 = true;
 	bool public debug5 = true;
 	bool public debug6 = true;

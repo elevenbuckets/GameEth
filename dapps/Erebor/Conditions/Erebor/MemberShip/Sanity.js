@@ -1,6 +1,6 @@
 module.exports = 
 {
-        MemberShip_allocateCoreManagersNFT_sanity(addr, jobObj)
+        MemberShip_allocateCoreManagers_sanity(addr, jobObj)
         {
                 return true;
         },

@@ -35,6 +35,7 @@ contract MemberShip {
         ELEMAddr = _ELEMAddr;
         // RNTAddr  = _RNTAddr;
         // allocate membership in migration file
+        allocateCoreManagers();
     }
 
     modifier ownerOnly() {
